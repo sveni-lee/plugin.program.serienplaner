@@ -35,6 +35,13 @@ class WLScraper():
         self.pic_path = ''
         self.firstaired = ''
 
+        self.posterUrl = ''
+        self.genre = ''
+        self.studio = ''
+        self.content_rating = ''
+        self.status = ''
+        self.year = ''
+
         # Original name of TVShow
 
         self.orig_tvshow = ''
@@ -111,6 +118,44 @@ class WLScraper():
         url_str="http://thetvdb.com/api/DECE3B6B5464C552/series/"+imdbnumber+"/all/de.xml"
         xml_str = urllib.urlopen(url_str).read()
         xmldoc = minidom.parseString(xml_str)
+
+        series_details = xmldoc.getElementsByTagName("Series")
+
+        for Series in series_details:
+            try:
+                posterUrl = Series.getElementsByTagName("poster")[0].firstChild.nodeValue
+                self.posterUrl = "http://thetvdb.com/banners/"+posterUrl
+            except:
+                pass
+
+            try:
+                _genre = Series.getElementsByTagName("Genre")[0].firstChild.nodeValue
+                _genre = _genre[1:-1]
+                self.genre = _genre.replace('|',' | ').strip()
+            except IndexError:
+                pass
+
+            try:
+                self.studio = Series.getElementsByTagName("Network")[0].firstChild.nodeValue
+            except IndexError:
+                pass
+
+            try:
+                self.content_rating = Series.getElementsByTagName("ContentRating")[0].firstChild.nodeValue
+            except:
+                pass
+
+            try:
+                self.status = Series.getElementsByTagName("Status")[0].firstChild.nodeValue
+            except:
+                pass
+
+            try:
+                year = Series.getElementsByTagName("FirstAired")[0].firstChild.nodeValue
+                self.year = year[:-6]
+            except IndexError:
+                pass
+
 
         episodes_detail = xmldoc.getElementsByTagName("Episode")
 

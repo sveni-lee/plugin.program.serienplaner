@@ -2,13 +2,13 @@
 
 ###########################################################################
 #
-#          FILE:  plugin.program.tvhighlights/default.py
+#          FILE:  plugin.program.serienplaner/default.py
 #
-#        AUTHOR:  Tobias D. Oestreicher
+#        AUTHOR:  sveni_lee
 #
 #       LICENSE:  GPLv3 <http://www.gnu.org/licenses/gpl.txt>
-#       VERSION:  0.1.5
-#       CREATED:  05.02.2016
+#       VERSION:  0.0.1
+#       CREATED:  17.3.2016
 #
 ###########################################################################
 
@@ -70,7 +70,7 @@ with open(TVShowTranslateFile, 'r') as transfile:
     TVShowTranslate=transfile.read().rstrip('\n')
 
 SPWatchtypes = {'international': 1, 'german': 5, 'classics': 3, 'soap': 2}
-SPTranslations = {'international' : __LS__(30120), 'german': __LS__(30121), 'classics': __LS__(30122), 'soap': __LS__(30123)}
+SPTranslations = {'international': __LS__(30120), 'german': __LS__(30121), 'classics': __LS__(30122), 'soap': __LS__(30123)}
 properties = ['ID', 'Staffel', 'Episode', 'Title', 'Starttime', 'Datum', 'neueEpisode', 'Channal', 'Logo', 'PVRID', 'Description', 'Ratin', 'Altersfreigabe', 'Genre', 'Studio', 'Jahr', 'Thumb', 'FirstAired', 'RunningTime', 'Poster', 'WatchType']
 
 # create category list from selection in settings
@@ -213,7 +213,10 @@ def get_thetvdbID(tvshowname):
     for tr in trans:
         if tvshowname == tr['name']:
             writeLog("Translating %s to %s" % (tvshowname,tr['tvshow']), level=xbmc.LOGDEBUG)
-            tvshowname = tr['tvshow']    
+            tvshowname = tr['tvshow']
+
+    tvshowname = tvshowname.replace('&', '')
+    tvshowname = tvshowname.replace('and', '')    
 
     tvshowname = tvshowname.encode("utf-8")
     url_str="http://thetvdb.com/api/GetSeries.php?seriesname="+tvshowname
@@ -490,30 +493,6 @@ def scrapeWLPage(category):
         else:
             details = WLScraper ()
             details.get_detail_thetvdb(imdbnumber, data.staffel, data.episode)
-        seriesdb_data = TVShowName2TVShow_Detais(data.tvshowname)
-        if not seriesdb_data:
-            try:
-                seriesdb_data = get_thetvdbPoster(imdbnumber)
-                posterUrl = 'http://thetvdb.com/banners/%s' % (seriesdb_data['_posterUrl'])      
-                genre = seriesdb_data['_genre']
-                studio = seriesdb_data['_studio']
-                content_rating = seriesdb_data['content_rating']
-                status = seriesdb_data['status']
-                year = seriesdb_data['year']
-            except:
-                posterUrl = ''
-                genre = ''
-                studio = ''
-                content_rating = ''
-                status = ''
-                year = ''
-        else:
-            posterUrl = seriesdb_data['_posterUrl']
-            genre = unicode.join(u' | ',map(unicode,seriesdb_data['_genre']))
-            studio = unicode.join(u'',map(unicode,seriesdb_data['_studio']))
-            content_rating = unicode.join(u'',map(unicode,seriesdb_data['_mpaa']))
-            year = seriesdb_data['_year']
-            status = ''
 
         thumbpath = details.pic_path
         if not thumbpath:
@@ -538,16 +517,16 @@ def scrapeWLPage(category):
         writeLog('ChannelID (PVR): %s' % (pvrchannelID), level=xbmc.LOGDEBUG)
         writeLog('Description:     %s' % (details.plot), level=xbmc.LOGDEBUG)
         writeLog('Rating:          %s' % (details.rating), level=xbmc.LOGDEBUG)
-        writeLog('Altersfreigabe:  %s' % (content_rating), level=xbmc.LOGDEBUG)
-        writeLog('Genre:           %s' % (genre), level=xbmc.LOGDEBUG)
-        writeLog('Studio:          %s' % (studio), level=xbmc.LOGDEBUG)
-        writeLog('Status:          %s' % (status), level=xbmc.LOGDEBUG)
-        writeLog('Jahr:            %s' % (year), level=xbmc.LOGDEBUG)
+        writeLog('Altersfreigabe:  %s' % (details.content_rating), level=xbmc.LOGDEBUG)
+        writeLog('Genre:           %s' % (details.genre), level=xbmc.LOGDEBUG)
+        writeLog('Studio:          %s' % (details.studio), level=xbmc.LOGDEBUG)
+        writeLog('Status:          %s' % (details.status), level=xbmc.LOGDEBUG)
+        writeLog('Jahr:            %s' % (details.year), level=xbmc.LOGDEBUG)
         writeLog('Thumb:           %s' % (thumbpath), level=xbmc.LOGDEBUG)
         writeLog('FirstAired:      %s' % (details.firstaired), level=xbmc.LOGDEBUG)
         writeLog('RunningTime:     %s' % (data.runtime), level=xbmc.LOGDEBUG)
         writeLog('Popup:           %s' % (detailURL), level=xbmc.LOGDEBUG)
-        writeLog('poster:          %s' % (posterUrl), level=xbmc.LOGDEBUG)
+        writeLog('poster:          %s' % (details.posterUrl), level=xbmc.LOGDEBUG)
         writeLog('Watchtype:       %s' % (category), level=xbmc.LOGDEBUG)
         writeLog('', level=xbmc.LOGDEBUG)
 
@@ -566,15 +545,15 @@ def scrapeWLPage(category):
                 'pvrid': unicode(pvrchannelID),
                 'description': unicode(details.plot),
                 'rating': unicode(details.rating),
-                'content_rating': unicode(content_rating),
-                'genre': unicode(genre),
-                'studio': unicode(studio),
-                'status': unicode(status),
-                'year': unicode(year),
+                'content_rating': unicode(details.content_rating),
+                'genre': unicode(details.genre),
+                'studio': unicode(details.studio),
+                'status': unicode(details.status),
+                'year': unicode(details.year),
                 'thumb': unicode(thumbpath),
                 'firstaired': unicode(details.firstaired),
                 'runtime': unicode(data.runtime),
-                'poster': unicode(posterUrl),
+                'poster': unicode(details.posterUrl),
                 'category': unicode(category),
                }
 
@@ -624,8 +603,8 @@ elif methode=='show_select_dialog':
         refreshHighlights()
     elif 0 <= ret <= 5:
         writeLog('%s selected' % (cats[ret]), level=xbmc.LOGDEBUG)
-        scrapeWLPage('international')
-        empty_widgets = refreshWidget('international')
+        scrapeWLPage(SPWatchtypes[ret])
+        empty_widgets = refreshWidget(SPWatchtypes[ret])
         clearWidgets(empty_widgets + 1)
     else:
         pass
