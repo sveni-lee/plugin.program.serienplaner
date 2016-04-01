@@ -61,11 +61,11 @@ def writeLog(message, level=xbmc.LOGNOTICE):
 
 # End Helpers
 
-ChannelTranslateFile = xbmc.translatePath(os.path.join('special://home/addons', __addonID__, 'ChannelTranslate.json'))
+ChannelTranslateFile = xbmc.translatePath(os.path.join(__path__, 'ChannelTranslate.json')) 
 with open(ChannelTranslateFile, 'r') as transfile:
     ChannelTranslate=transfile.read().rstrip('\n')
 
-TVShowTranslateFile = xbmc.translatePath(os.path.join('special://home/addons', __addonID__, 'TVShowTranslate.json'))
+TVShowTranslateFile = xbmc.translatePath(os.path.join(__path__, 'TVShowTranslate.json'))
 with open(TVShowTranslateFile, 'r') as transfile:
     TVShowTranslate=transfile.read().rstrip('\n')
 
