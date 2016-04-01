@@ -71,6 +71,7 @@ with open(TVShowTranslateFile, 'r') as transfile:
 
 SPWatchtypes = {'international': 1, 'german': 5, 'classics': 3, 'soap': 2}
 SPTranslations = {'international': __LS__(30120), 'german': __LS__(30121), 'classics': __LS__(30122), 'soap': __LS__(30123)}
+SPTranslations1 = {__LS__(30120): 'international', __LS__(30121): 'german', __LS__(30122): 'classics', __LS__(30123): 'soap'}
 properties = ['ID', 'Staffel', 'Episode', 'Title', 'Starttime', 'Datum', 'neueEpisode', 'Channal', 'Logo', 'PVRID', 'Description', 'Ratin', 'Altersfreigabe', 'Genre', 'Studio', 'Jahr', 'Thumb', 'FirstAired', 'RunningTime', 'Poster', 'WatchType']
 
 # create category list from selection in settings
@@ -603,8 +604,8 @@ elif methode=='show_select_dialog':
         refreshHighlights()
     elif 0 <= ret <= 5:
         writeLog('%s selected' % (cats[ret]), level=xbmc.LOGDEBUG)
-        scrapeWLPage(SPWatchtypes[ret])
-        empty_widgets = refreshWidget(SPWatchtypes[ret])
+        scrapeWLPage(SPTranslations1[cats[ret]])
+        empty_widgets = refreshWidget(SPTranslations1[cats[ret]])
         clearWidgets(empty_widgets + 1)
     else:
         pass

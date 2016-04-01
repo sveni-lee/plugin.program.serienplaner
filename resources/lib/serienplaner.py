@@ -132,12 +132,12 @@ class WLScraper():
                 _genre = Series.getElementsByTagName("Genre")[0].firstChild.nodeValue
                 _genre = _genre[1:-1]
                 self.genre = _genre.replace('|',' | ').strip()
-            except IndexError:
+            except:
                 pass
 
             try:
                 self.studio = Series.getElementsByTagName("Network")[0].firstChild.nodeValue
-            except IndexError:
+            except:
                 pass
 
             try:
@@ -153,7 +153,7 @@ class WLScraper():
             try:
                 year = Series.getElementsByTagName("FirstAired")[0].firstChild.nodeValue
                 self.year = year[:-6]
-            except IndexError:
+            except:
                 pass
 
 
