@@ -18,6 +18,7 @@ class WLScraper():
         self.tvshowname =''
         self.tvshowstarttime = ''
         self.tvshowendtime = ''
+        self.starttimestamp = ''
         self.date = ''
         self.episode = ''
         self.staffel = ''        
@@ -36,6 +37,7 @@ class WLScraper():
         self.firstaired = ''
 
         self.posterUrl = ''
+        self.fanartUrl = ''
         self.genre = ''
         self.studio = ''
         self.content_rating = ''
@@ -45,6 +47,7 @@ class WLScraper():
         # Original name of TVShow
 
         self.orig_tvshow = ''
+        self.detailpath = ''
 
 
     def scrapeserien(self, content):
@@ -61,6 +64,7 @@ class WLScraper():
             self.date = _tvshowstarttime.strftime('%d.%m.%Y')
             _tvshowendtime = re.compile('ende=(.+?)&kid', re.DOTALL).findall(content)[0]
             _tvshowendtime = datetime.datetime(*(time.strptime(_tvshowendtime, '%Y%m%dT%H%M%S')[0:6]))
+            self.starttimestamp = _tvshowstarttime
             self.tvshowendtime = _tvshowendtime.strftime('%H:%M')
             _runtime = _tvshowendtime - _tvshowstarttime
             self.runtime = _runtime.seconds/60
@@ -125,35 +129,41 @@ class WLScraper():
             try:
                 posterUrl = Series.getElementsByTagName("poster")[0].firstChild.nodeValue
                 self.posterUrl = "http://thetvdb.com/banners/"+posterUrl
-            except:
+            except (AttributeError, IndexError):
                 pass
+
+            try:
+                fanartUrl = Series.getElementsByTagName("fanart")[0].firstChild.nodeValue
+                self.fanartUrl = "http://thetvdb.com/banners/"+fanartUrl
+            except (AttributeError, IndexError):
+                pass   
 
             try:
                 _genre = Series.getElementsByTagName("Genre")[0].firstChild.nodeValue
                 _genre = _genre[1:-1]
                 self.genre = _genre.replace('|',' | ').strip()
-            except:
+            except (AttributeError, IndexError):
                 pass
 
             try:
                 self.studio = Series.getElementsByTagName("Network")[0].firstChild.nodeValue
-            except:
+            except (AttributeError, IndexError):
                 pass
 
             try:
                 self.content_rating = Series.getElementsByTagName("ContentRating")[0].firstChild.nodeValue
-            except:
+            except (AttributeError, IndexError):
                 pass
 
             try:
                 self.status = Series.getElementsByTagName("Status")[0].firstChild.nodeValue
-            except:
+            except (AttributeError, IndexError):
                 pass
 
             try:
                 year = Series.getElementsByTagName("FirstAired")[0].firstChild.nodeValue
                 self.year = year[:-6]
-            except:
+            except (AttributeError, IndexError):
                 pass
 
 
@@ -179,8 +189,8 @@ class WLScraper():
                     pass
                 try:
                     self.pic_path = "http://www.thetvdb.com/banners/episodes/"+imdbnumber+"/"+self.epiid+".jpg"
-                except IndexError:
-                    pass
+                except AttributeError:
+                    self.pic_path = False
     
     def get_original_series_name(self, content, tvshow):
 
@@ -203,8 +213,43 @@ class WLScraper():
             container.pop(0)
             content = container[0]
 
+
             # picture path
             try:
                 self.pic_path = re.compile('class="big"><a href="(.+?)" rel="', re.DOTALL).findall(content)[0]
-            except IndexError:
+            except:
                 pass            
+
+    def get_scrapper_fernsehserien_path(self, content, tvshow, title):
+
+        content = content.replace("\\","")
+
+        try:
+            detailpath = re.compile('%s/folgen/%s-(.+?)" onclick' % (tvshow, title), re.DOTALL).findall(content)[0]
+            self.detailpath = "http://www.fernsehserien.de/"+tvshow+"/folgen/"+title+"-"+detailpath
+        except (AttributeError, IndexError):
+            pass
+
+    
+    def get_details_fernseserien(self, content, tvshow, title):
+
+        
+        if 'class="episode-output-inhalt">' in content:
+            container = content.split('class="episode-output-inhalt">')
+            container.pop(0)
+            content = container[0]
+            try:
+                self.plot = re.compile('<p>(.+?)<', re.DOTALL).findall(content)[0]
+            except IndexError:
+                pass
+
+            try:
+                self.pic_path = re.compile('src="(.+?)"', re.DOTALL).findall(content)[0]
+            except IndexError:
+                pass
+
+            try:
+                self.firstaired = re.compile('Erstausstrahlung: (.+?) <', re.DOTALL).findall(content)[0]
+                self.firstaired = self.firstaired[-10:]
+            except IndexError:
+                pass                                

@@ -1,4 +1,5 @@
 #!/usr/bin/python
+# -*- coding: utf-8 -*-
 
 ###########################################################################
 #
@@ -20,15 +21,19 @@ import sys
 import xbmc
 import xbmcgui
 import xbmcaddon
+import xbmcplugin
 import time
 import datetime
 import json
+import sqlite3
 from datetime import timedelta
 import _strptime
 from xml.dom import minidom
 
 from resources.lib.serienplaner import WLScraper
 
+
+## Kategorie = ''
 __addon__ = xbmcaddon.Addon()
 __addonID__ = __addon__.getAddonInfo('id')
 __addonname__ = __addon__.getAddonInfo('name')
@@ -39,9 +44,12 @@ __icon__ = xbmc.translatePath(os.path.join(__path__, 'icon.png'))
 
 __showOutdated__ = True if __addon__.getSetting('showOutdated').upper() == 'TRUE' else False
 __maxHLCat__ = int(re.match('\d+', __addon__.getSetting('max_hl_cat')).group())
+__advancedDay__ = int(re.match('\d+', __addon__.getSetting('advanced')).group())
 __prefer_hd__ = True if __addon__.getSetting('prefer_hd').upper() == 'TRUE' else False
 __firstaired__ = True if __addon__.getSetting('first_aired').upper() == 'TRUE' else False
 __series_in_db__ = True if __addon__.getSetting('episode_not_in_db').upper() == 'TRUE' else False
+__datapath__  = os.path.join(xbmc.translatePath('special://masterprofile/addon_data/').decode('utf-8'), __addonID__)
+SerienPlaner = __datapath__+'/serienplaner.db'
 
 WINDOW = xbmcgui.Window(10000)
 OSD = xbmcgui.Dialog()
@@ -69,10 +77,10 @@ TVShowTranslateFile = xbmc.translatePath(os.path.join(__path__, 'TVShowTranslate
 with open(TVShowTranslateFile, 'r') as transfile:
     TVShowTranslate=transfile.read().rstrip('\n')
 
-SPWatchtypes = {'international': 1, 'german': 5, 'classics': 3, 'soap': 2}
-SPTranslations = {'international': __LS__(30120), 'german': __LS__(30121), 'classics': __LS__(30122), 'soap': __LS__(30123)}
-SPTranslations1 = {__LS__(30120): 'international', __LS__(30121): 'german', __LS__(30122): 'classics', __LS__(30123): 'soap'}
-properties = ['ID', 'Staffel', 'Episode', 'Title', 'Starttime', 'Datum', 'neueEpisode', 'Channal', 'Logo', 'PVRID', 'Description', 'Ratin', 'Altersfreigabe', 'Genre', 'Studio', 'Jahr', 'Thumb', 'FirstAired', 'RunningTime', 'Poster', 'WatchType']
+SPWatchtypes = {'international': 1, 'german': 5, 'classics': 3, 'soaps': 2}
+SPTranslations = {'international': __LS__(30120), 'german': __LS__(30121), 'classics': __LS__(30122), 'soaps': __LS__(30123)}
+SPTranslations1 = {__LS__(30120): 'international', __LS__(30121): 'german', __LS__(30122): 'classics', __LS__(30123): 'soaps'}
+properties = ['TVShow', 'Staffel', 'Episode', 'Title', 'Starttime', 'Datum', 'neueEpisode', 'Channel', 'Logo', 'PVRID', 'Description', 'Rating', 'Altersfreigabe', 'Genre', 'Studio', 'Status', 'Jahr', 'Thumb', 'FirstAired', 'RunningTime', 'Poster', 'Fanart', 'WatchType']
 
 # create category list from selection in settings
 
@@ -197,7 +205,8 @@ def TVShowName2TVShowID(tvshowname):
             res = res['result']['tvshows']
             for tvshow in res:
                 if tvshow['label'] == tvshowname:
-                    return tvshow['imdbnumber']
+##                    return tvshow['imdbnumber']
+                    return True
         return False
     except Exception:
         writeLog("JSON query returns an error", level=xbmc.LOGDEBUG)
@@ -366,86 +375,58 @@ def clearWidgets(start_from=1):
         for property in properties:
             WINDOW.clearProperty('SerienPlaner.%s.%s' % (i, property))
 
-def refreshWidget(category, offset=0):
+def refreshWidget(offset=0):
 
-    if not __showOutdated__:
-        writeLog("SerienPlaner: Show only upcoming events", level=xbmc.LOGDEBUG)
+    Kategorie = WINDOW.getProperty('Kategorie')
 
-    blobs = WINDOW.getProperty('SP.%s.blobs' % category)
-    if blobs == '': return 0
+    writeLog('refreshWidget Kategorie:  %s' % (Kategorie), level=xbmc.LOGDEBUG)
+    listitems = []
 
-    widget = 1
-    for i in range(1, int(blobs) + 1, 1):
-        if widget > __maxHLCat__ or offset + widget > 16:
-            writeLog('Max. Limit of widgets reached, abort processing', level=xbmc.LOGDEBUG)
-            break
+    conn = sqlite3.connect(SerienPlaner)
+    cur = conn.cursor()
+    query = """SELECT %s
+           FROM TVShowData
+           WHERE julianday(_Starttime) + (_RunningTime / 24.0 / 60.0) > julianday('now', 'localtime')
+           %s
+           ORDER BY _Starttime
+           LIMIT %s"""
 
-        writeLog('Processing blob SP.%s.%s for widget #%s' % (category, i, offset + widget), level=xbmc.LOGDEBUG)
+    filter = ""
+    parameters = []
 
-        blob = eval(WINDOW.getProperty('SP.%s.%s' % (category, i)))
+    if not Kategorie or Kategorie == __LS__(30116):
+        filter += ""
+        parameters += ()
+    else:
+        filter += " AND WatchType = ?"
+        parameters += (Kategorie,)
+    if __series_in_db__:
+        filter += " AND Serie_in_DB = ?"
+        parameters += (True,)
+    if __firstaired__:
+        filter += " AND neueEpisode LIKE ?"
+        parameters += ('%'+'NEU'+'%',)
 
-        if not __showOutdated__:
-            _now = datetime.datetime.now()
-            try:
-                _dt = '%s.%s.%s %s' % (_now.day, _now.month, _now.year, blob['starttime'])
-                timestamp = date2timeStamp(_dt, '%d.%m.%Y %H:%M')
-                if timestamp + 60 * int(blob['runtime']) < int(time.time()) :
-                    writeLog('SerienPlaner: discard blob SP.%s.%s, broadcast @%s has already finished' % (category, i, _dt), level=xbmc.LOGDEBUG)
-                    continue
-            except ValueError:
-                writeLog('Could not determine any date value, discard blob SP.%s.%s' % (category, i), level=xbmc.LOGERROR)
-                continue
+    query = query % (','.join(properties), filter, __maxHLCat__)
+    cur.execute(query, parameters)
+    try:
+        for idx, data in enumerate(cur, offset):
+            for field, item in zip(properties, data):     
+            
+                WINDOW.setProperty('SerienPlaner.%d.%s' % (idx, field), item)
+                
+            listitems.append(dict(zip(properties, data)))    
 
-        WINDOW.setProperty('SerienPlaner.%s.ID' % (offset + widget), blob['id'])
-        WINDOW.setProperty('SerienPlaner.%s.TVShow' % (offset + widget), blob['tvshow'])
-        WINDOW.setProperty('SerienPlaner.%s.Staffel' % (offset + widget), blob['staffel'])
-        WINDOW.setProperty('SerienPlaner.%s.Episode' % (offset + widget), blob['episode'])
-        WINDOW.setProperty('SerienPlaner.%s.Title' % (offset + widget), blob['title'])
-        WINDOW.setProperty('SerienPlaner.%s.Starttime' % (offset + widget), blob['starttime'])
-        WINDOW.setProperty('SerienPlaner.%s.Datum' % (offset + widget), blob['date'])
-        WINDOW.setProperty('SerienPlaner.%s.neueEpisode' % (offset + widget), blob['neueepisode'])
-        WINDOW.setProperty('SerienPlaner.%s.Channel' % (offset + widget), blob['pvrchannel'])
-        WINDOW.setProperty('SerienPlaner.%s.Logo' % (offset + widget), blob['logo'])
-        WINDOW.setProperty('SerienPlaner.%s.PVRID' % (offset + widget), blob['pvrid'])
-        WINDOW.setProperty('SerienPlaner.%s.Description' % (offset + widget), blob['description'])
-        WINDOW.setProperty('SerienPlaner.%s.Rating' % (offset + widget), blob['rating'])
-        WINDOW.setProperty('SerienPlaner.%s.Altersfreigabe' % (offset + widget), blob['content_rating'])
-        WINDOW.setProperty('SerienPlaner.%s.Genre' % (offset + widget), blob['genre'])
-        WINDOW.setProperty('SerienPlaner.%s.Studio' % (offset + widget), blob['studio'])
-        WINDOW.setProperty('SerienPlaner.%s.Jahr' % (offset + widget), blob['year'])
-        WINDOW.setProperty('SerienPlaner.%s.Thumb' % (offset + widget), blob['thumb'])
-        WINDOW.setProperty('SerienPlaner.%s.FirstAired' % (offset + widget), blob['firstaired'])
-        WINDOW.setProperty('SerienPlaner.%s.RunningTime' % (offset + widget), blob['runtime'])
-        WINDOW.setProperty('SerienPlaner.%s.Poster' % (offset + widget), blob['poster'])        
-        WINDOW.setProperty('SerienPlaner.%s.WatchType' % (offset + widget), SPTranslations[blob['category']])
-        widget += 1
+        return listitems
+    finally:
+    
+        cur.execute("""DELETE FROM TVShowData WHERE julianday(_Starttime) + (_RunningTime / 24.0 / 60.0) < julianday('now', 'localtime')""")
+        conn.commit()
+        conn.close()
 
-    return widget - 1
 
-def refreshSerienPlaner():
-
-    offset = 0
-    for category in categories():
-        offset += refreshWidget(category, offset)
-    clearWidgets(offset + 1)
-
-def searchBlob(item, value):
-
-    for category in SPWatchtypes:
-        blobs = WINDOW.getProperty('SP.%s.blobs' % category)
-        if blobs == '':
-            writeLog('No blobs for cat %s' % (category), level=xbmc.LOGDEBUG)
-            continue
-
-        for idx in range(1, int(blobs) + 1, 1):
-            blob = eval(WINDOW.getProperty('SP.%s.%s' % (category, idx)))
-            if blob[item] == value.decode('utf-8'):
-                writeLog('Found value \'%s\' in item \'%s\' of blob \'SP.%s.%s\'' % (value.decode('utf-8'), item, category, idx), level=xbmc.LOGDEBUG)
-                return blob
-    return False
-
-def scrapeWLPage(category):
-    url = url = '%s%s/0' % (WLURL, SPWatchtypes[category])
+def scrapeWLPage(category, day):
+    url = url = '%s%s/%s' % (WLURL, SPWatchtypes[category], day)
     writeLog('Start scraping category %s from %s' % (category, url), level=xbmc.LOGDEBUG)
 
     content = getUnicodePage(url, container='<li id="e_')
@@ -467,16 +448,10 @@ def scrapeWLPage(category):
         if not  pvrchannelID:
             writeLog("SerienPlaner: Channel %s is not in PVR, discard entry" % (data.channel), level=xbmc.LOGDEBUG)
             continue   
-        if __firstaired__:
-            if  "NEU" not in data.neueepisode:
-                writeLog("SerienPlaner: TVShow %s %sx%s is not firstaired, discard entry" % (data.tvshowname, data.staffel, data.episode), level=xbmc.LOGDEBUG)
-                continue
         logoURL = pvrchannelid2logo(pvrchannelID)
         channel = pvrchannelid2channelname(pvrchannelID)
-        if __series_in_db__:
-                if not TVShowName2TVShowID(data.tvshowname):
-                  writeLog("SerienPlaner: TVShow %s is not in DB, discard entry" % (data.tvshowname), level=xbmc.LOGDEBUG)
-                  continue  
+        serieinDB = TVShowName2TVShowID(data.tvshowname)
+
         detailURL = 'http://www.wunschliste.de%s' % (data.detailURL)
         seriesUrl = 'http://www.wunschliste.de%s' % (data.nameURL)
         imdbnumber = get_thetvdbID(data.tvshowname)
@@ -488,18 +463,89 @@ def scrapeWLPage(category):
         else:
             pass
         if not imdbnumber:
-            writeLog("SerienPlaner: TVShow %s is not in DB, discard entry" % (data.tvshowname), level=xbmc.LOGDEBUG)
-            details = WLScraper()
-            details.scrapeDetailPage(getUnicodePage(detailURL), 'div class="text"') 
+##            details = WLScraper()
+##            details.scrapeDetailPage(getUnicodePage(detailURL), 'div class="text"')
+            tvshow = data.tvshowname
+            tvshow = tvshow.encode('utf-8')
+            tvshow = tvshow.replace('&', 'und')
+            tvshow = tvshow.replace('- ', '').strip()
+            tvshow = tvshow.replace("ß", "ss").strip()
+            tvshow = tvshow.replace("ö", "oe")
+            tvshow = tvshow.replace("ü", "ue")
+            tvshow = tvshow.replace("ä", "ae")
+            tvshow = tvshow.replace(',', '').strip()
+            tvshow = tvshow.replace('.', '').strip()
+            tvshow = tvshow.replace(' ', '-').strip()
+            tvshow = tvshow.replace('/', '-').strip()
+            tvshow = str(tvshow.lower())
+            title = data.title
+            title = title.encode('utf-8')
+            title = title.replace("ß", "ss").strip()
+            title = title.replace(',', '').strip()
+            title = title.replace('- ', '').strip()
+            title = title.replace("ö", "oe")
+            title = title.replace("ü", "ue")
+            title = title.replace("ä", "ae")
+            title = title.replace(' ', '-').strip()        
+            title = str(title.lower())
+            url = "http://www.fernsehserien.de/%s/episodenguide" % (tvshow)
+            detail_url = WLScraper()
+            detail_url.get_scrapper_fernsehserien_path(getUnicodePage(url), tvshow, title)
+            writeLog("Fernsehserienpath: %s" % (detail_url.detailpath), level=xbmc.LOGDEBUG)
+            if not detail_url.detailpath:
+                continue
+            else:
+                details = WLScraper()
+                details.get_details_fernseserien(getUnicodePage(detail_url.detailpath), tvshow, title)
         else:
             details = WLScraper ()
             details.get_detail_thetvdb(imdbnumber, data.staffel, data.episode)
-
+##        if not details.epiid:
+##            try:
+##                pic_path = WLScraper ()
+##                pic_path.get_scrapedetail_pcpath(getUnicodePage(detailURL), 'div class="text"')
+##                thumbpath = pic_path.pic_path
+##            except AttributeError:
+##                pass
+##        else:
+        if not details.pic_path:
+##            details = WLScraper()
+##            details.scrapeDetailPage(getUnicodePage(detailURL), 'div class="text"')
+            tvshow = data.tvshowname
+            tvshow = tvshow.encode('utf-8')
+            tvshow = tvshow.replace('&', 'und')
+            tvshow = tvshow.replace('- ', '').strip()
+            tvshow = tvshow.replace("ß", "ss").strip()
+            tvshow = tvshow.replace("ö", "oe")
+            tvshow = tvshow.replace("ü", "ue")
+            tvshow = tvshow.replace("ä", "ae")
+            tvshow = tvshow.replace(',', '').strip()
+            tvshow = tvshow.replace('.', '').strip()
+            tvshow = tvshow.replace(' ', '-').strip()
+            tvshow = tvshow.replace('/', '-').strip()
+            tvshow = str(tvshow.lower())
+            title = data.title
+            title = title.encode('utf-8')
+            title = title.replace("ß", "ss").strip()
+            title = title.replace(',', '').strip()
+            title = title.replace('- ', '').strip()
+            title = title.replace("ö", "oe")
+            title = title.replace("ü", "ue")
+            title = title.replace("ä", "ae")
+            title = title.replace(' ', '-').strip()        
+            title = str(title.lower())
+            url = "http://www.fernsehserien.de/%s/episodenguide" % (tvshow)
+            detail_url = WLScraper()
+            detail_url.get_scrapper_fernsehserien_path(getUnicodePage(url), tvshow, title)
+            writeLog("Fernsehserienpath: %s" % (detail_url.detailpath), level=xbmc.LOGDEBUG)
+            if not detail_url.detailpath:
+                pass
+            else:
+                details = WLScraper()
+                details.get_details_fernseserien(getUnicodePage(detail_url.detailpath), tvshow, title)
+        else:
+            pass
         thumbpath = details.pic_path
-        if not thumbpath:
-            pic_path = WLScraper ()
-            pic_path.get_scrapedetail_pcpath(getUnicodePage(detailURL), 'div class="text"')
-            thumbpath = pic_path.pic_path
 
 
 
@@ -528,6 +574,8 @@ def scrapeWLPage(category):
         writeLog('RunningTime:     %s' % (data.runtime), level=xbmc.LOGDEBUG)
         writeLog('Popup:           %s' % (detailURL), level=xbmc.LOGDEBUG)
         writeLog('poster:          %s' % (details.posterUrl), level=xbmc.LOGDEBUG)
+        writeLog('fanart:          %s' % (details.fanartUrl), level=xbmc.LOGDEBUG)
+        writeLog('Serie in DB:     %s' % (serieinDB), level=xbmc.LOGDEBUG)
         writeLog('Watchtype:       %s' % (category), level=xbmc.LOGDEBUG)
         writeLog('', level=xbmc.LOGDEBUG)
 
@@ -538,7 +586,9 @@ def scrapeWLPage(category):
                 'episode': unicode(data.episode),
                 'title': unicode(data.title),
                 'starttime': unicode(data.tvshowstarttime),
-                'date': unicode(data.date),
+                '_starttime': data.starttimestamp,
+                'date' : unicode(data.date),
+                '_date': data.date,
                 'neueepisode': unicode(data.neueepisode),
                 'channel': unicode(data.channel),                
                 'pvrchannel': unicode(channel),
@@ -554,15 +604,79 @@ def scrapeWLPage(category):
                 'thumb': unicode(thumbpath),
                 'firstaired': unicode(details.firstaired),
                 'runtime': unicode(data.runtime),
+                '_runtime': data.runtime,
                 'poster': unicode(details.posterUrl),
+                'fanart': unicode(details.fanartUrl),
+                'Serie_in_DB': serieinDB,
                 'category': unicode(category),
                }
 
-        WINDOW.setProperty('SP.%s.%s' % (category, i), str(blob))
+
+        conn = sqlite3.connect(SerienPlaner)
+        cur = conn.cursor()
+        cur.execute("""CREATE TABLE IF NOT EXISTS TVShowData(
+            WatchType,
+            Datum,
+            _Datum,
+            Starttime,
+            _Starttime,
+            Channel,
+            TVShow,
+            Staffel,
+            Episode,
+            Title,
+            neueEpisode,
+            Description,
+            Rating,
+            Altersfreigabe,
+            Genre,
+            Studio,
+            Status,
+            Jahr,
+            FirstAired,
+            RunningTime,
+            _RunningTime,
+            Thumb,
+            Poster,
+            Fanart,
+            PVRID,
+            Logo,
+            Serie_in_DB,
+            UNIQUE(Datum, Starttime, Channel)
+            ON CONFLICT REPLACE);""")
+
+        sql_command = """INSERT INTO TVShowData(
+            WatchType,
+            Datum,
+            _Datum,
+            Starttime,
+            _Starttime,
+            Channel,
+            TVShow,
+            Staffel,
+            Episode,
+            Title,
+            neueEpisode,
+            Description,
+            Rating,
+            Altersfreigabe,
+            Genre,
+            Studio,
+            Status,
+            Jahr,
+            FirstAired,
+            RunningTime,
+            _RunningTime,
+            Thumb,
+            Poster,
+            Fanart,
+            PVRID,
+            Logo,
+            Serie_in_DB) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""";
+        cur.execute(sql_command, (SPTranslations[blob['category']], blob['date'], blob['_date'], blob['starttime'], blob['_starttime'], blob['pvrchannel'], blob['tvshow'], blob['staffel'], blob['episode'], blob['title'], blob['neueepisode'], blob['description'], blob['rating'], blob['content_rating'], blob['genre'], blob['studio'], blob['status'], blob['year'], blob['firstaired'], blob['runtime'], blob['_runtime'], blob['thumb'], blob['poster'], blob['fanart'], blob['pvrid'], blob['logo'], blob['Serie_in_DB']))
+        conn.commit()
+        conn.close()
         i += 1
-
-    WINDOW.setProperty('SP.%s.blobs' % (category), str(i - 1))
-
 
 # M A I N
 #________
@@ -573,11 +687,18 @@ methode = None
 detailurl = None
 pvrid = None
 
-if len(sys.argv)>1:
+if len(sys.argv)==3:
+    addon_handle = int(sys.argv[1])
+    params = parameters_string_to_dict(sys.argv[2])
+    methode = urllib.unquote_plus(params.get('methode', ''))
+    url = urllib.unquote_plus(params.get('url', ''))
+
+elif len(sys.argv)>1:
     params = parameters_string_to_dict(sys.argv[1])
     methode = urllib.unquote_plus(params.get('methode', ''))
     detailurl = urllib.unquote_plus(params.get('detailurl', ''))
     pvrid = urllib.unquote_plus(params.get('pvrid', ''))
+    url = urllib.unquote_plus(params.get('url', ''))
 
 writeLog("Methode from external script: %s" % (methode), level=xbmc.LOGDEBUG)
 writeLog("Detailurl from external script: %s" % (detailurl), level=xbmc.LOGDEBUG)
@@ -585,11 +706,45 @@ writeLog("pvrid from external script: %s" % (pvrid), level=xbmc.LOGDEBUG)
 
 if methode == 'scrape_serien':
     for category in categories():
-        scrapeWLPage(category)
-    refreshSerienPlaner()
+        for i in range(__advancedDay__):
+            scrapeWLPage(category, i)
+    refreshWidget()
 
 elif methode == 'refresh_screen':
-    refreshSerienPlaner()
+    WINDOW.setProperty('SerienPlaner.Countdown', unicode(time.time()))
+    writeLog('localtime %s' % (time.time()), level=xbmc.LOGDEBUG)
+    refreshWidget()
+
+elif methode == 'get_item_serienplaner':
+    sp_items = refreshWidget()
+    writeLog('spitems %s' % (sp_items), level=xbmc.LOGDEBUG)
+    writeLog('SerienPlaner sysargv: '+str(sys.argv), level=xbmc.LOGDEBUG)
+    url = '-'
+    for sitem in sp_items:
+
+        li = xbmcgui.ListItem(label2=sitem['TVShow'], label=sitem['Title'], thumbnailImage=sitem['Thumb'])
+        li.setProperty("channel", sitem['Channel'])
+        li.setArt({'poster': sitem['Poster'], 'fanart': sitem['Fanart']})
+##        li.setProperty("plot", sitem['Description'])
+        li.setInfo('video', {'Season' : sitem['Staffel'], 'Episode' : sitem['Episode'], 'Title' : sitem['Title'], 'Genre' : sitem['Genre'], 'mpaa' : sitem['Altersfreigabe'], 'year' : sitem['Jahr'], 'duration' : sitem['RunningTime'], 'plot' : sitem['Description'], 'rating' : sitem['Rating'], 'studio' : sitem['Studio'], 'tvshowtitle' : sitem['TVShow']})
+##        li.setEpisode("episode", sitem['Episode'])
+##        li.setTitle("Title", sitem['Title'])
+        li.setProperty("starttime", sitem['Starttime'])
+##        li.setProperty("rating", sitem['Rating'])
+        li.setProperty("senderlogo", sitem['Logo'])
+##        li.setProperty("genre", sitem['Genre'])
+        li.setProperty("date", sitem['Datum'])
+##        li.setProperty("runtime", sitem['RunningTime'])
+##        li.setProperty("studio", sitem['Studio'])
+##        li.setProperty("year", sitem['Jahr'])
+##        li.setProperty("altersfreigabe", sitem['Altersfreigabe'])
+        li.setProperty("status", sitem['Status'])
+##        li.setProperty("label", sitem['Title'])
+##        li.setProperty("label2", sitem['TVShow'])
+        xbmcplugin.addDirectoryItem(handle=addon_handle, url=url, listitem=li)
+    xbmcplugin.endOfDirectory(addon_handle)
+    xbmc.executebuiltin("Container.Refresh")
+
 
 elif methode == 'switch_channel':
     switchToChannel(int(pvrid))
@@ -601,11 +756,13 @@ elif methode=='show_select_dialog':
     ret = dialog.select(__LS__(30011), cats)
 
     if ret == 6:
-        refreshHighlights()
+        refreshWidget()
     elif 0 <= ret <= 5:
         writeLog('%s selected' % (cats[ret]), level=xbmc.LOGDEBUG)
-        scrapeWLPage(SPTranslations1[cats[ret]])
-        empty_widgets = refreshWidget(SPTranslations1[cats[ret]])
-        clearWidgets(empty_widgets + 1)
+
+        WINDOW.setProperty('Kategorie', unicode(cats[ret]))        
+        refreshWidget()
+        WINDOW.setProperty('SerienPlaner.Countdown', unicode(time.time()))
+
     else:
         pass

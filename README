@@ -49,6 +49,6 @@ bisher stehen folgende Items zur Verfügung:
 			<label2>$INFO[Window.Property(SerienPlaner.1.TVShow)]</label2>
 			<thumb>$INFO[Window.Property(SerienPlaner.1.Thumb)]</thumb>
 			<icon>$INFO[Window.Property(SerienPlaner.1.Poster)]</icon>
-			<onclick>RunScript(plugin.program.sereinplaner,"?methode=set_details_to_home&detailurl=$INFO[Window.Property(SerienPlaner.1.Popup)]")</onclick>			
+			<onclick>RunScript(plugin.program.serienplaner,"?methode=set_details_to_home&detailurl=$INFO[Window.Property(SerienPlaner.1.Popup)]")</onclick>			
 			<visible>!IsEmpty(Window.Property(SerienPlaner.1.TVShow))</visible>
 

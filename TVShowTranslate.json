@@ -17,7 +17,7 @@
 	"name": "Die Millers",
 	"tvshow": "The Millers"
 }, {
-	"name": "Meine Wilden Töchter",
+	"name": "Meine wilden Töchter",
 	"tvshow": "8 Simple Rules"	
 }, {
 	"name": "Faking It",
@@ -49,4 +49,10 @@
 }, {
 	"name": "House of Cards",
 	"tvshow": "House of Cards (2013)"
+}, {
+	"name": "The Frankenstein Chronicles",
+	"tvshow": "Frankenstein Chronicles"
+}, {
+	"name": "19-2",
+	"tvshow": "19-2 (2014)"
 }]

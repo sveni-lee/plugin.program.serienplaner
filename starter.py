@@ -36,6 +36,8 @@ __version__ = __addon__.getAddonInfo('version')
 __path__ = __addon__.getAddonInfo('path')
 __LS__ = __addon__.getLocalizedString
 __icon__ = xbmc.translatePath(os.path.join(__path__, 'icon.png'))
+__datapath__  = os.path.join(xbmc.translatePath('special://masterprofile/addon_data/').decode('utf-8'), __addonID__)
+SerienPlaner = __datapath__+'/serienplaner.db'
 
 OSD = xbmcgui.Dialog()
 
@@ -94,7 +96,11 @@ class Starter():
         writeLog('Poll cycles:              %s' % (self.poll), level=xbmc.LOGDEBUG)
 
         xbmc.sleep(self.delay)
-        xbmc.executebuiltin('XBMC.RunScript(plugin.program.serienplaner,"?methode=scrape_serien")')
+        
+        if not os.path.exists(SerienPlaner):
+            xbmc.executebuiltin('XBMC.RunScript(plugin.program.serienplaner,"?methode=scrape_serien")')
+        else:
+             xbmc.executebuiltin('XBMC.RunScript(plugin.program.serienplaner,"?methode=refresh_screen")')
 
     def start(self):
         writeLog('Starting %s V.%s' % (__addonname__, __version__))
@@ -127,6 +133,7 @@ class Starter():
                 if not self.showOutdated:
                     writeLog('Refresh content on home screen')
                     xbmc.executebuiltin('XBMC.RunScript(plugin.program.serienplaner,"?methode=refresh_screen")')
+
 
 if __name__ == '__main__':
     starter = Starter()
