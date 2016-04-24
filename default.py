@@ -43,6 +43,7 @@ __LS__ = __addon__.getLocalizedString
 __icon__ = xbmc.translatePath(os.path.join(__path__, 'icon.png'))
 
 __showOutdated__ = True if __addon__.getSetting('showOutdated').upper() == 'TRUE' else False
+__pvr_is_activ__ = True if __addon__.getSetting('pvractive').upper() == 'TRUE' else False 
 __maxHLCat__ = int(re.match('\d+', __addon__.getSetting('max_hl_cat')).group())
 __advancedDay__ = int(re.match('\d+', __addon__.getSetting('advanced')).group())
 __prefer_hd__ = True if __addon__.getSetting('prefer_hd').upper() == 'TRUE' else False
@@ -445,7 +446,7 @@ def scrapeWLPage(category, day):
         data.scrapeserien(container)
 
         pvrchannelID = channelName2channelId(data.channel)
-        if not  pvrchannelID:
+        if __pvr_is_activ__ and not pvrchannelID:
             writeLog("SerienPlaner: Channel %s is not in PVR, discard entry" % (data.channel), level=xbmc.LOGDEBUG)
             continue   
         logoURL = pvrchannelid2logo(pvrchannelID)
