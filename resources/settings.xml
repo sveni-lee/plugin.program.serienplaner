@@ -5,6 +5,7 @@
         <setting type="sep" />
         <setting id="mdelay" type="labelenum" label="30127" lvalues="30160|30161|30162|30163|30164" default="30163"/>
         <setting id="screenrefresh" type="labelenum" label="30128" lvalues="30151|30152|30153|30154|30155|30156" default="30151"/>
+        <setting id="pvractive" type="bool" label="30112" default="true"/>
     </category>
     <category label="30105">
         <setting id="international" type="bool" label="30120" default="true"/>

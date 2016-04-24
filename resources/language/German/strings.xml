@@ -1,10 +1,9 @@
-<!-- TV Highlights Grabber TV Digital -->
 <!-- German Language File -->
 
 <strings>
     <string id="30010">SerienPlaner</string>
     <string id="30011">Serienplaner Rubrik</string>
-    <string id="30018">Lade Infos von TV Digital</string>
+    <string id="30018">Lade Infos</string>
 
     <string id="30100">SerienPlaner Information zur Sendung</string>
     <string id="30101">Genre:</string>
@@ -18,6 +17,7 @@
     <string id="30119">Abbrechen</string>
 
     <string id="30110">Allgemein</string>
+    <string id="30112">nur bei aktiviertem PVR-Client</string>
     <string id="30113">Bevorzuge HD Sendungen</string>
     <string id="30114">Info bei Systemstart und Refresh</string>
     <string id="30115">Anzahl max. Einträge pro Rubrik</string>
