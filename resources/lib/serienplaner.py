@@ -7,6 +7,10 @@ import time
 from xml.dom import minidom
 import urllib
 import urllib2
+try:
+    import simplejson as json
+except ImportError:
+    import json
 
 class WLScraper():
 
@@ -48,6 +52,10 @@ class WLScraper():
 
         self.orig_tvshow = ''
         self.detailpath = ''
+
+        # FanartTV
+
+        self.clearlogo = ''
 
 
     def scrapeserien(self, content):
@@ -252,4 +260,30 @@ class WLScraper():
                 self.firstaired = re.compile('Erstausstrahlung: (.+?) <', re.DOTALL).findall(content)[0]
                 self.firstaired = self.firstaired[-10:]
             except IndexError:
-                pass                                
+                pass
+
+
+    def get_fanarttv_clearlogo(self, tvdb_id, art_type, lang = 'en'):
+
+        API_KEY = '586118be1ac673f74963cc284d46bd8e'
+        API_URL_TV = 'http://webservice.fanart.tv/v3/tv/%s?api_key=%s'   
+
+        if art_type == 'clearlogo':
+            find_types = [ 'hdtvlogo', 'clearlogo' ]
+        else:
+            find_types = [ 'tv' + str(art_type) ]
+        url = API_URL_TV % (tvdb_id, API_KEY)
+        data = json.load(urllib.urlopen(url))
+        if not data:
+            self.clearlogo = None
+
+        ret = None
+        for find in find_types:
+            logos = data.get(find, [])
+            for logo in logos:
+                if logo['lang'] == lang:
+                    self.clearlogo = logo['url']
+                # We'll accept the wrong language as a fallback, as they are sometimes mislabeled.
+                if not self.clearlogo:
+                    self.clearlogo = logo['url']
+                                       
