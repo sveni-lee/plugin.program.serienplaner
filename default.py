@@ -81,7 +81,7 @@ with open(TVShowTranslateFile, 'r') as transfile:
 SPWatchtypes = {'international': 1, 'german': 5, 'classics': 3, 'soaps': 2}
 SPTranslations = {'international': __LS__(30120), 'german': __LS__(30121), 'classics': __LS__(30122), 'soaps': __LS__(30123)}
 SPTranslations1 = {__LS__(30120): 'international', __LS__(30121): 'german', __LS__(30122): 'classics', __LS__(30123): 'soaps'}
-properties = ['TVShow', 'Staffel', 'Episode', 'Title', 'Starttime', 'Datum', 'neueEpisode', 'Channel', 'Logo', 'PVRID', 'Description', 'Rating', 'Altersfreigabe', 'Genre', 'Studio', 'Status', 'Jahr', 'Thumb', 'FirstAired', 'RunningTime', 'Poster', 'Fanart', 'WatchType']
+properties = ['TVShow', 'Staffel', 'Episode', 'Title', 'Starttime', 'Datum', 'neueEpisode', 'Channel', 'Logo', 'PVRID', 'Description', 'Rating', 'Altersfreigabe', 'Genre', 'Studio', 'Status', 'Jahr', 'Thumb', 'FirstAired', 'RunningTime', 'Poster', 'Fanart', 'Clearlogo', 'WatchType']
 
 # create category list from selection in settings
 
@@ -501,6 +501,9 @@ def scrapeWLPage(category, day):
         else:
             details = WLScraper ()
             details.get_detail_thetvdb(imdbnumber, data.staffel, data.episode)
+            clearlogo = WLScraper()
+            clearlogo.get_fanarttv_clearlogo(imdbnumber, 'clearlogo')
+
 ##        if not details.epiid:
 ##            try:
 ##                pic_path = WLScraper ()
@@ -549,7 +552,6 @@ def scrapeWLPage(category, day):
         thumbpath = details.pic_path
 
 
-
         writeLog('', level=xbmc.LOGDEBUG)
         writeLog('ID:              SP.%s.%s' %(category, i), level=xbmc.LOGDEBUG)
         writeLog('TVShow:           %s' % (data.tvshowname), level=xbmc.LOGDEBUG)
@@ -578,6 +580,7 @@ def scrapeWLPage(category, day):
         writeLog('fanart:          %s' % (details.fanartUrl), level=xbmc.LOGDEBUG)
         writeLog('Serie in DB:     %s' % (serieinDB), level=xbmc.LOGDEBUG)
         writeLog('Watchtype:       %s' % (category), level=xbmc.LOGDEBUG)
+        writeLog('Clearlogo:       %s' % (clearlogo.clearlogo), level=xbmc.LOGDEBUG)
         writeLog('', level=xbmc.LOGDEBUG)
 
         blob = {
@@ -608,6 +611,7 @@ def scrapeWLPage(category, day):
                 '_runtime': data.runtime,
                 'poster': unicode(details.posterUrl),
                 'fanart': unicode(details.fanartUrl),
+                'clearlogo': unicode(clearlogo.clearlogo),
                 'Serie_in_DB': serieinDB,
                 'category': unicode(category),
                }
@@ -640,6 +644,7 @@ def scrapeWLPage(category, day):
             Thumb,
             Poster,
             Fanart,
+            Clearlogo,
             PVRID,
             Logo,
             Serie_in_DB,
@@ -671,10 +676,11 @@ def scrapeWLPage(category, day):
             Thumb,
             Poster,
             Fanart,
+            Clearlogo,
             PVRID,
             Logo,
-            Serie_in_DB) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""";
-        cur.execute(sql_command, (SPTranslations[blob['category']], blob['date'], blob['_date'], blob['starttime'], blob['_starttime'], blob['pvrchannel'], blob['tvshow'], blob['staffel'], blob['episode'], blob['title'], blob['neueepisode'], blob['description'], blob['rating'], blob['content_rating'], blob['genre'], blob['studio'], blob['status'], blob['year'], blob['firstaired'], blob['runtime'], blob['_runtime'], blob['thumb'], blob['poster'], blob['fanart'], blob['pvrid'], blob['logo'], blob['Serie_in_DB']))
+            Serie_in_DB) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""";
+        cur.execute(sql_command, (SPTranslations[blob['category']], blob['date'], blob['_date'], blob['starttime'], blob['_starttime'], blob['pvrchannel'], blob['tvshow'], blob['staffel'], blob['episode'], blob['title'], blob['neueepisode'], blob['description'], blob['rating'], blob['content_rating'], blob['genre'], blob['studio'], blob['status'], blob['year'], blob['firstaired'], blob['runtime'], blob['_runtime'], blob['thumb'], blob['poster'], blob['fanart'],blob['clearlogo'], blob['pvrid'], blob['logo'], blob['Serie_in_DB']))
         conn.commit()
         conn.close()
         i += 1
@@ -725,21 +731,22 @@ elif methode == 'get_item_serienplaner':
 
         li = xbmcgui.ListItem(label2=sitem['TVShow'], label=sitem['Title'], thumbnailImage=sitem['Thumb'])
         li.setProperty("channel", sitem['Channel'])
-        li.setArt({'poster': sitem['Poster'], 'fanart': sitem['Fanart']})
+        li.setArt({'poster': sitem['Poster'], 'fanart': sitem['Fanart'], 'clearlogo' : sitem['Clearlogo']})
+        li.setInfo('video', {'Season' : sitem['Staffel'], 'Episode' : sitem['Episode'], 'Title' : sitem['Title'], 'Genre' : sitem['Genre'], 'mpaa' : sitem['Altersfreigabe'], 'year' : sitem['Jahr'], 'duration' : '{:01d}:{:02d}'.format(*divmod(int(sitem['RunningTime']), 60)), 'plot' : sitem['Description'], 'rating' : sitem['Rating'], 'studio' : sitem['Studio'], 'tvshowtitle' : sitem['TVShow']})
+        li.setProperty("senderlogo", sitem['Logo'])
+        li.setProperty("starttime", sitem['Starttime'])
+        li.setProperty("date", sitem['Datum'])
+        li.setProperty("RunTime", sitem['RunningTime'])
+        li.setProperty("PVRID", sitem['PVRID'])
+        li.setProperty("status", sitem['Status'])
 ##        li.setProperty("plot", sitem['Description'])
-        li.setInfo('video', {'Season' : sitem['Staffel'], 'Episode' : sitem['Episode'], 'Title' : sitem['Title'], 'Genre' : sitem['Genre'], 'mpaa' : sitem['Altersfreigabe'], 'year' : sitem['Jahr'], 'duration' : sitem['RunningTime'], 'plot' : sitem['Description'], 'rating' : sitem['Rating'], 'studio' : sitem['Studio'], 'tvshowtitle' : sitem['TVShow']})
 ##        li.setEpisode("episode", sitem['Episode'])
 ##        li.setTitle("Title", sitem['Title'])
-        li.setProperty("starttime", sitem['Starttime'])
 ##        li.setProperty("rating", sitem['Rating'])
-        li.setProperty("senderlogo", sitem['Logo'])
 ##        li.setProperty("genre", sitem['Genre'])
-        li.setProperty("date", sitem['Datum'])
-##        li.setProperty("runtime", sitem['RunningTime'])
 ##        li.setProperty("studio", sitem['Studio'])
 ##        li.setProperty("year", sitem['Jahr'])
 ##        li.setProperty("altersfreigabe", sitem['Altersfreigabe'])
-        li.setProperty("status", sitem['Status'])
 ##        li.setProperty("label", sitem['Title'])
 ##        li.setProperty("label2", sitem['TVShow'])
         xbmcplugin.addDirectoryItem(handle=addon_handle, url=url, listitem=li)
