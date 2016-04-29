@@ -28,6 +28,8 @@
 ###########################################################################
 
 import os,re,xbmc,xbmcgui,xbmcaddon
+import time
+import datetime
 
 __addon__ = xbmcaddon.Addon()
 __addonID__ = __addon__.getAddonInfo('id')
@@ -99,6 +101,7 @@ class Starter():
         
         if not os.path.exists(SerienPlaner):
             xbmc.executebuiltin('XBMC.RunScript(plugin.program.serienplaner,"?methode=scrape_serien")')
+
         else:
              xbmc.executebuiltin('XBMC.RunScript(plugin.program.serienplaner,"?methode=refresh_screen")')
 
@@ -108,7 +111,6 @@ class Starter():
         self.getSettings()
 
         ## Thoughts: refresh = 5m; refresh-content=120 => i-max=120/5;
-
         _c = 0
         _pc = 0
         monitor = MyMonitor()
@@ -121,13 +123,13 @@ class Starter():
             _pc += 1
             if _pc < self.poll:
                 continue
-            _c += 1
+            f = open("%s/background.dat" % __datapath__,"r")
+            scraperupdate = float(f.read()) + self.mdelay                
             _pc = 0
-            if _c >= self.refreshcontent:
+            if time.time() >= scraperupdate:
                 writeLog('Scrape SerienPlaner')
                 notifyOSD(__LS__(30010), __LS__(30018), __icon__, enabled=self.enableinfo)
                 xbmc.executebuiltin('XBMC.RunScript(plugin.program.serienplaner,"?methode=scrape_serien")')
-                _c = 0
             else:
                 notifyOSD(__LS__(30010), __LS__(30108), __icon__, enabled=self.enableinfo)
                 if not self.showOutdated:

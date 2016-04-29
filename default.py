@@ -715,6 +715,9 @@ if methode == 'scrape_serien':
     for category in categories():
         for i in range(__advancedDay__):
             scrapeWLPage(category, i)
+    f = open("%s/background.dat" % __datapath__,"w")
+    f.write(str(time.time()))
+    f.close()     
     refreshWidget()
 
 elif methode == 'refresh_screen':
