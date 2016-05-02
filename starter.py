@@ -39,6 +39,7 @@ __path__ = __addon__.getAddonInfo('path')
 __LS__ = __addon__.getLocalizedString
 __icon__ = xbmc.translatePath(os.path.join(__path__, 'icon.png'))
 __datapath__  = os.path.join(xbmc.translatePath('special://masterprofile/addon_data/').decode('utf-8'), __addonID__)
+Backgroundupdate = __datapath__+'/background.dat'
 SerienPlaner = __datapath__+'/serienplaner.db'
 
 OSD = xbmcgui.Dialog()
@@ -99,7 +100,7 @@ class Starter():
 
         xbmc.sleep(self.delay)
         
-        if not os.path.exists(SerienPlaner):
+        if not os.path.exists(SerienPlaner) or not os.path.exists(Backgroundupdate):
             xbmc.executebuiltin('XBMC.RunScript(plugin.program.serienplaner,"?methode=scrape_serien")')
 
         else:

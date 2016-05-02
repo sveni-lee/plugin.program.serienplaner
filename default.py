@@ -712,12 +712,13 @@ writeLog("Detailurl from external script: %s" % (detailurl), level=xbmc.LOGDEBUG
 writeLog("pvrid from external script: %s" % (pvrid), level=xbmc.LOGDEBUG)
 
 if methode == 'scrape_serien':
+    f = open("%s/background.dat" % __datapath__,"w")
+    f.write(str(time.time()))
+    f.close()    
+
     for category in categories():
         for i in range(__advancedDay__):
             scrapeWLPage(category, i)
-    f = open("%s/background.dat" % __datapath__,"w")
-    f.write(str(time.time()))
-    f.close()     
     refreshWidget()
 
 elif methode == 'refresh_screen':
