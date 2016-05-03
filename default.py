@@ -498,6 +498,8 @@ def scrapeWLPage(category, day):
             else:
                 details = WLScraper()
                 details.get_details_fernseserien(getUnicodePage(detail_url.detailpath), tvshow, title)
+                clearlogo = WLScraper()
+                clearlogo.get_fanarttv_clearlogo(imdbnumber, 'clearlogo')               
         else:
             details = WLScraper ()
             details.get_detail_thetvdb(imdbnumber, data.staffel, data.episode)
