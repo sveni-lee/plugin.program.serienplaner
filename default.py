@@ -745,7 +745,7 @@ elif methode == 'get_item_serienplaner':
         li.setProperty("RunTime", sitem['RunningTime'])
         li.setProperty("PVRID", sitem['PVRID'])
         li.setProperty("status", sitem['Status'])
-        li.setProperty('datetime', '%s %s' % (sitem['Datum'], sitem['StartTime']))
+        li.setProperty('datetime', '%s %s' % (sitem['Datum'], sitem['Starttime']))
 ##        li.setProperty("plot", sitem['Description'])
 ##        li.setEpisode("episode", sitem['Episode'])
 ##        li.setTitle("Title", sitem['Title'])
