@@ -30,6 +30,7 @@
 import os,re,xbmc,xbmcgui,xbmcaddon
 import time
 import datetime
+import sqlite3
 
 __addon__ = xbmcaddon.Addon()
 __addonID__ = __addon__.getAddonInfo('id')
@@ -52,6 +53,17 @@ def notifyOSD(header, message, icon=xbmcgui.NOTIFICATION_INFO, disp=4000, enable
 
 def writeLog(message, level=xbmc.LOGNOTICE):
         xbmc.log('[%s %s]: %s' % (__addonID__, __version__,  message.encode('utf-8')), level)
+
+def checkTableExists():
+    conn = sqlite3.connect(SerienPlaner)
+    cur = conn.cursor()
+    cur.execute("""SELECT COUNT(*) FROM sqlite_master WHERE name = '{0}'""")
+    if cur.fetchone()[0] == 1:
+        cur.close()
+        return True
+
+    cur.close()
+    return False
 
 # End Helpers #
 
@@ -77,6 +89,8 @@ class Starter():
         self.mdelay = 0
         self.screenrefresh = 0
 
+
+
     def getSettings(self):
         self.enableinfo = True if __addon__.getSetting('enableinfo').upper() == 'TRUE' else False
         self.showOutdated = True if __addon__.getSetting('showOutdated').upper() == 'TRUE' else False
@@ -99,8 +113,11 @@ class Starter():
         writeLog('Poll cycles:              %s' % (self.poll), level=xbmc.LOGDEBUG)
 
         xbmc.sleep(self.delay)
+
+        tableexist = checkTableExists()
+        writeLog('Tabelle ist vorhanden: %s' % (tableexist))
         
-        if not os.path.exists(SerienPlaner) or not os.path.exists(Backgroundupdate):
+        if not tableexist == True or not os.path.exists(Backgroundupdate):
             xbmc.executebuiltin('XBMC.RunScript(plugin.program.serienplaner,"?methode=scrape_serien")')
 
         else:
