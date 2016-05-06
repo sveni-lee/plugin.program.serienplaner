@@ -57,13 +57,13 @@ def writeLog(message, level=xbmc.LOGNOTICE):
 def checkTableExists():
     conn = sqlite3.connect(SerienPlaner)
     cur = conn.cursor()
-    cur.execute("""SELECT COUNT(*) FROM sqlite_master WHERE name = '{0}'""")
+    cur.execute("""SELECT COUNT(*) FROM sqlite_master WHERE name = 'TVShowData'""")
     if cur.fetchone()[0] == 1:
         cur.close()
         return True
-
-    cur.close()
-    return False
+    else:
+        cur.close()
+        return False
 
 # End Helpers #
 
