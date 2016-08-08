@@ -81,7 +81,7 @@ with open(TVShowTranslateFile, 'r') as transfile:
 SPWatchtypes = {'international': 1, 'german': 5, 'classics': 3, 'soaps': 2}
 SPTranslations = {'international': __LS__(30120), 'german': __LS__(30121), 'classics': __LS__(30122), 'soaps': __LS__(30123)}
 SPTranslations1 = {__LS__(30120): 'international', __LS__(30121): 'german', __LS__(30122): 'classics', __LS__(30123): 'soaps'}
-properties = ['TVShow', 'Staffel', 'Episode', 'Title', 'Starttime', 'Datum', 'neueEpisode', 'Channel', 'Logo', 'PVRID', 'Description', 'Rating', 'Altersfreigabe', 'Genre', 'Studio', 'Status', 'Jahr', 'Thumb', 'FirstAired', 'RunningTime', 'Poster', 'Fanart', 'Clearlogo', 'WatchType']
+properties = ['TVShow', 'Staffel', 'Episode', 'Title', 'Starttime', '_Starttime', 'Datum', 'neueEpisode', 'Channel', 'Logo', 'PVRID', 'Description', 'Rating', 'Altersfreigabe', 'Genre', 'Studio', 'Status', 'Jahr', 'Thumb', 'FirstAired', 'RunningTime', 'Poster', 'Fanart', 'Clearlogo', 'WatchType']
 
 # create category list from selection in settings
 
@@ -734,8 +734,13 @@ elif methode == 'get_item_serienplaner':
     writeLog('SerienPlaner sysargv: '+str(sys.argv), level=xbmc.LOGDEBUG)
     url = '-'
     for sitem in sp_items:
-
         li = xbmcgui.ListItem(label2=sitem['TVShow'], label=sitem['Title'], thumbnailImage=sitem['Thumb'])
+
+        if sitem['_Starttime'] <= datetime.datetime.strftime(datetime.datetime.now(), '%Y-%m-%d %H:%M:%S'):
+            li.setProperty("Playstatus", "IsRunning")
+        else:
+            li.setProperty("Playstatus", "IsInFuture")
+
         li.setProperty("channel", sitem['Channel'])
         li.setArt({'poster': sitem['Poster'], 'fanart': sitem['Fanart'], 'clearlogo' : sitem['Clearlogo']})
         li.setInfo('video', {'Season' : sitem['Staffel'], 'Episode' : sitem['Episode'], 'Title' : sitem['Title'], 'Genre' : sitem['Genre'], 'mpaa' : sitem['Altersfreigabe'], 'year' : sitem['Jahr'], 'duration' : '{:01d}:{:02d}'.format(*divmod(int(sitem['RunningTime']), 60)), 'plot' : sitem['Description'], 'rating' : sitem['Rating'], 'studio' : sitem['Studio'], 'tvshowtitle' : sitem['TVShow']})
