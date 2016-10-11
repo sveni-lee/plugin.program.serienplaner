@@ -48,13 +48,15 @@ __maxHLCat__ = int(re.match('\d+', __addon__.getSetting('max_hl_cat')).group())
 __advancedDay__ = int(re.match('\d+', __addon__.getSetting('advanced')).group())
 __prefer_hd__ = True if __addon__.getSetting('prefer_hd').upper() == 'TRUE' else False
 __firstaired__ = True if __addon__.getSetting('first_aired').upper() == 'TRUE' else False
-__series_in_db__ = True if __addon__.getSetting('episode_not_in_db').upper() == 'TRUE' else False
+__series_in_db__ = True if __addon__.getSetting('serie_not_in_db').upper() == 'TRUE' else False
+__episode_not_in_db__ = True if __addon__.getSetting('episode_not_in_db').upper() == 'TRUE' else False
 __datapath__  = os.path.join(xbmc.translatePath('special://masterprofile/addon_data/').decode('utf-8'), __addonID__)
 SerienPlaner = __datapath__+'/serienplaner.db'
 
 WINDOW = xbmcgui.Window(10000)
 OSD = xbmcgui.Dialog()
 WLURL = 'http://www.wunschliste.de/serienplaner/'
+
 
 # Helpers
 
@@ -187,6 +189,33 @@ def channelName2channelId(channelname):
     return False
 
 ##########################################################################################################################
+## get TVShow-DBID 
+##########################################################################################################################
+def TVShowName2TVShowDBID(tvshowname):
+    query = {
+            "jsonrpc": "2.0",
+            "method": "VideoLibrary.GetTVShows",
+            "params": {
+                "properties": ["originaltitle", "imdbnumber"]
+            },
+            "id": "libTvShows"
+            }
+    
+    res = json.loads(xbmc.executeJSONRPC(json.dumps(query, encoding='utf-8')))
+    
+    try:
+        if 'result' in res and 'tvshows' in res['result']:
+            res = res['result']['tvshows']
+            for tvshow in res:
+                if tvshow['label'] == tvshowname:
+                    return tvshow['tvshowid']
+
+        return False
+    except Exception:
+        writeLog("JSON query returns an error", level=xbmc.LOGDEBUG)
+        return False
+
+##########################################################################################################################
 ## get TVShow-ID 
 ##########################################################################################################################
 def TVShowName2TVShowID(tvshowname):
@@ -200,7 +229,7 @@ def TVShowName2TVShowID(tvshowname):
             }
     
     res = json.loads(xbmc.executeJSONRPC(json.dumps(query, encoding='utf-8')))
-
+#    writeLog("JSON returns: %s" % (res), level=xbmc.LOGDEBUG)
     try:
         if 'result' in res and 'tvshows' in res['result']:
             res = res['result']['tvshows']
@@ -212,6 +241,41 @@ def TVShowName2TVShowID(tvshowname):
     except Exception:
         writeLog("JSON query returns an error", level=xbmc.LOGDEBUG)
         return False
+
+
+
+
+##########################################################################################################################
+## get Season and Episode TVShow-ID 
+##########################################################################################################################
+def SeasonAndEpisodeInDB(tvshowid, season, episode):
+    query = {
+            "jsonrpc": "2.0",
+            "method": "VideoLibrary.GetEpisodes",
+            "params": {
+                "tvshowid": tvshowid,
+                "properties": ["season", "episode"]
+            },
+            "id": "libEpisodes"
+            }
+    
+    res = json.loads(xbmc.executeJSONRPC(json.dumps(query, encoding='utf-8')))
+#    writeLog("JSON returns: %s" % (res), level=xbmc.LOGDEBUG)
+    try:
+        if 'result' in res and 'episodes' in res['result']:
+            res = res['result']['episodes']
+            for episo in res:
+#                writeLog("JSON returns: Season %s Episode %s" % (episo['season'], episo['episode']), level=xbmc.LOGDEBUG)
+#                writeLog("Season: %s  Episode: %s" % (season, episode), level=xbmc.LOGDEBUG)
+                if episo['season'] == int(season) and episo['episode'] == int(episode):
+                    writeLog("Ergebnis: TRUE", level=xbmc.LOGDEBUG)                
+                    return True
+        return False
+    except Exception:
+        writeLog("JSON query returns an error", level=xbmc.LOGDEBUG)
+        return False
+
+
 
 ##########################################################################################################################
 ## get TVShow-ID 
@@ -404,6 +468,9 @@ def refreshWidget(offset=0):
     if __series_in_db__:
         filter += " AND Serie_in_DB = ?"
         parameters += (True,)
+    if __episode_not_in_db__:
+        filter += " AND EpisodeInDB = ?"
+        parameters += (False,)        
     if __firstaired__:
         filter += " AND neueEpisode LIKE ?"
         parameters += ('%'+'NEU'+'%',)
@@ -425,6 +492,56 @@ def refreshWidget(offset=0):
         conn.commit()
         conn.close()
 
+def get_Guide_Items(k, gdate, offset=0):
+    
+    i=200+(k)
+    listitems = []
+
+    conn = sqlite3.connect(SerienPlaner)
+    cur = conn.cursor()
+    query = """SELECT %s
+           FROM TVShowData
+           WHERE julianday(_Starttime) + (_RunningTime / 24.0 / 60.0) > julianday('now', 'localtime')
+           %s
+           ORDER BY _Starttime"""
+
+    filter = ""
+    parameters = []
+
+ #   if not Kategorie or Kategorie == __LS__(30116):
+ #       filter += ""
+ #       parameters += ()
+ #   else:
+ #       filter += " AND WatchType = ?"
+ #       parameters += (Kategorie,)
+    filter += " AND Datum = ?"
+    parameters += (gdate,)
+    if __series_in_db__:
+        filter += " AND Serie_in_DB = ?"
+        parameters += (True,)
+    if __episode_not_in_db__:
+        filter += " AND EpisodeInDB = ?"
+        parameters += (False,)
+    if __firstaired__:
+        filter += " AND neueEpisode LIKE ?"
+        parameters += ('%'+'NEU'+'%',)
+
+    query = query % (','.join(properties), filter)
+    cur.execute(query, parameters)
+    try:
+        for idx, data in enumerate(cur, offset):
+            for field, item in zip(properties, data):     
+            
+                WINDOW.setProperty('SerienPlaner.%s.TVGUIDE.%d.%s' % (i, idx, field), item)
+                
+            listitems.append(dict(zip(properties, data)))    
+
+        return listitems
+    finally:
+    
+#        cur.execute()
+        conn.commit()
+        conn.close()
 
 def scrapeWLPage(category, day):
     url = url = '%s%s/%s' % (WLURL, SPWatchtypes[category], day)
@@ -452,6 +569,8 @@ def scrapeWLPage(category, day):
         logoURL = pvrchannelid2logo(pvrchannelID)
         channel = pvrchannelid2channelname(pvrchannelID)
         serieinDB = TVShowName2TVShowID(data.tvshowname)
+        tvshowdbid = TVShowName2TVShowDBID(data.tvshowname)
+        episodeinDB = SeasonAndEpisodeInDB(tvshowdbid, data.staffel, data.episode)
 
         detailURL = 'http://www.wunschliste.de%s' % (data.detailURL)
         seriesUrl = 'http://www.wunschliste.de%s' % (data.nameURL)
@@ -581,6 +700,8 @@ def scrapeWLPage(category, day):
         writeLog('poster:          %s' % (details.posterUrl), level=xbmc.LOGDEBUG)
         writeLog('fanart:          %s' % (details.fanartUrl), level=xbmc.LOGDEBUG)
         writeLog('Serie in DB:     %s' % (serieinDB), level=xbmc.LOGDEBUG)
+        writeLog('TVShowDBID:      %s' % (tvshowdbid), level=xbmc.LOGDEBUG)
+        writeLog('Episode in DB:   %s' % (episodeinDB), level=xbmc.LOGDEBUG)
         writeLog('Watchtype:       %s' % (category), level=xbmc.LOGDEBUG)
         writeLog('Clearlogo:       %s' % (clearlogo.clearlogo), level=xbmc.LOGDEBUG)
         writeLog('', level=xbmc.LOGDEBUG)
@@ -615,6 +736,7 @@ def scrapeWLPage(category, day):
                 'fanart': unicode(details.fanartUrl),
                 'clearlogo': unicode(clearlogo.clearlogo),
                 'Serie_in_DB': serieinDB,
+                'EpisodeInDB': episodeinDB,
                 'category': unicode(category),
                }
 
@@ -650,6 +772,7 @@ def scrapeWLPage(category, day):
             PVRID,
             Logo,
             Serie_in_DB,
+            EpisodeInDB,
             UNIQUE(Datum, Starttime, Channel)
             ON CONFLICT REPLACE);""")
 
@@ -681,8 +804,9 @@ def scrapeWLPage(category, day):
             Clearlogo,
             PVRID,
             Logo,
-            Serie_in_DB) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""";
-        cur.execute(sql_command, (SPTranslations[blob['category']], blob['date'], blob['_date'], blob['starttime'], blob['_starttime'], blob['pvrchannel'], blob['tvshow'], blob['staffel'], blob['episode'], blob['title'], blob['neueepisode'], blob['description'], blob['rating'], blob['content_rating'], blob['genre'], blob['studio'], blob['status'], blob['year'], blob['firstaired'], blob['runtime'], blob['_runtime'], blob['thumb'], blob['poster'], blob['fanart'],blob['clearlogo'], blob['pvrid'], blob['logo'], blob['Serie_in_DB']))
+            Serie_in_DB,
+            EpisodeInDB) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""";
+        cur.execute(sql_command, (SPTranslations[blob['category']], blob['date'], blob['_date'], blob['starttime'], blob['_starttime'], blob['pvrchannel'], blob['tvshow'], blob['staffel'], blob['episode'], blob['title'], blob['neueepisode'], blob['description'], blob['rating'], blob['content_rating'], blob['genre'], blob['studio'], blob['status'], blob['year'], blob['firstaired'], blob['runtime'], blob['_runtime'], blob['thumb'], blob['poster'], blob['fanart'],blob['clearlogo'], blob['pvrid'], blob['logo'], blob['Serie_in_DB'], blob['EpisodeInDB']))
         conn.commit()
         conn.close()
         i += 1
@@ -700,6 +824,7 @@ if len(sys.argv)==3:
     addon_handle = int(sys.argv[1])
     params = parameters_string_to_dict(sys.argv[2])
     methode = urllib.unquote_plus(params.get('methode', ''))
+    guidedate = urllib.unquote_plus(params.get('guidedate', ''))
     url = urllib.unquote_plus(params.get('url', ''))
 
 elif len(sys.argv)>1:
@@ -743,7 +868,7 @@ elif methode == 'get_item_serienplaner':
 
         li.setProperty("channel", sitem['Channel'])
         li.setArt({'poster': sitem['Poster'], 'fanart': sitem['Fanart'], 'clearlogo' : sitem['Clearlogo']})
-        li.setInfo('video', {'Season' : sitem['Staffel'], 'Episode' : sitem['Episode'], 'Title' : sitem['Title'], 'Genre' : sitem['Genre'], 'mpaa' : sitem['Altersfreigabe'], 'year' : sitem['Jahr'], 'duration' : '{:01d}:{:02d}'.format(*divmod(int(sitem['RunningTime']), 60)), 'plot' : sitem['Description'], 'rating' : sitem['Rating'], 'studio' : sitem['Studio'], 'tvshowtitle' : sitem['TVShow']})
+        li.setInfo('video', {'Season' : sitem['Staffel'], 'Episode' : sitem['Episode'], 'Title' : sitem['Title'], 'Genre' : sitem['Genre'], 'mpaa' : sitem['Altersfreigabe'], 'year' : sitem['Jahr'], 'plot' : sitem['Description'], 'rating' : sitem['Rating'], 'studio' : sitem['Studio'], 'tvshowtitle' : sitem['TVShow']})
         li.setProperty("senderlogo", sitem['Logo'])
         li.setProperty("starttime", sitem['Starttime'])
         li.setProperty("date", sitem['Datum'])
@@ -751,7 +876,9 @@ elif methode == 'get_item_serienplaner':
         li.setProperty("PVRID", sitem['PVRID'])
         li.setProperty("status", sitem['Status'])
         li.setProperty('datetime', '%s %s' % (sitem['Datum'], sitem['Starttime']))
-##        li.setProperty("plot", sitem['Description'])
+        li.setProperty('recordtime', sitem['_Starttime'])
+        li.setProperty("recordname", '%s.S%sE%s.%s' % (sitem['TVShow'], sitem['Staffel'], sitem['Episode'], sitem['Title']))
+        li.setProperty("DBType", '%s' % ("serienplaner"))
 ##        li.setEpisode("episode", sitem['Episode'])
 ##        li.setTitle("Title", sitem['Title'])
 ##        li.setProperty("rating", sitem['Rating'])
@@ -764,6 +891,28 @@ elif methode == 'get_item_serienplaner':
         xbmcplugin.addDirectoryItem(handle=addon_handle, url=url, listitem=li)
     xbmcplugin.endOfDirectory(addon_handle)
     xbmc.executebuiltin("Container.Refresh")
+
+elif methode == 'TV_SP_Guide':
+   
+    Popup = xbmcgui.WindowXMLDialog('script-serienplaner-TVGuide.xml', __path__, 'Default', '1080p')
+    Popup.doModal() 
+
+elif methode == 'get_Date':
+    gdate = datetime.datetime.strftime(datetime.date.today(), '%d.%m.%Y')
+    i=0
+ 
+    for i in range(15):
+        _gdate = datetime.date.today() + datetime.timedelta(days=i)
+
+        gdate = _gdate.strftime('%d.%m.%Y')
+        wday = _gdate.strftime("%a")
+
+        WINDOW.setProperty('TV-Guide.%s.Date' % (i+1), unicode(gdate))
+        WINDOW.setProperty('TV-Guide.%s.Wday' % (i+1), unicode(wday))       
+        writeLog('spitems %s - %s' % (wday, WINDOW.getProperty('TV-Guide.%s.Date' % (i+1))), level=xbmc.LOGDEBUG)
+        spg_items = get_Guide_Items(i, gdate)
+
+        i=i+1     
 
 
 elif methode == 'switch_channel':
