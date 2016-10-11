@@ -597,6 +597,7 @@ def scrapeWLPage(category, day):
             tvshow = tvshow.replace('.', '').strip()
             tvshow = tvshow.replace(' ', '-').strip()
             tvshow = tvshow.replace('/', '-').strip()
+            tvshow = tvshow.replace("'", '').strip()
             tvshow = str(tvshow.lower())
             title = data.title
             title = title.encode('utf-8')
@@ -648,6 +649,7 @@ def scrapeWLPage(category, day):
             tvshow = tvshow.replace('.', '').strip()
             tvshow = tvshow.replace(' ', '-').strip()
             tvshow = tvshow.replace('/', '-').strip()
+            tvshow = tvshow.replace("'", '').strip()
             tvshow = str(tvshow.lower())
             title = data.title
             title = title.encode('utf-8')
