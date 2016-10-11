@@ -65,7 +65,8 @@ class WLScraper():
             channel = channel.replace(' (Pay-TV)','').strip()
             channel = channel.replace(u' (Österreich)','').strip()
             self.channel = channel.replace(' (Schweiz)','').strip()
-            self.tvshowname = re.compile('class="sendung b[^\s]*">(.+?)</a>', re.DOTALL).findall(content)[0]
+            _tvshowname = re.compile('class="sendung b[^\s]*">(.+?)</a>', re.DOTALL).findall(content)[0]
+            self.tvshowname = _tvshowname.replace("'", '').strip()
             _tvshowstarttime = re.compile('start=(.+?)&ktermin', re.DOTALL).findall(content)[0]
             _tvshowstarttime = datetime.datetime(*(time.strptime(_tvshowstarttime, '%Y%m%dT%H%M%S')[0:6]))
             self.tvshowstarttime = _tvshowstarttime.strftime('%H:%M')
@@ -234,6 +235,8 @@ class WLScraper():
 
         try:
             detailpath = re.compile('%s/folgen/%s-(.+?)" onclick' % (tvshow, title), re.DOTALL).findall(content)[0]
+            detailpath = detailpath.replace('(','-')
+            detailpath = detailpath.replace(')','')
             self.detailpath = "http://www.fernsehserien.de/"+tvshow+"/folgen/"+title+"-"+detailpath
         except (AttributeError, IndexError):
             pass
