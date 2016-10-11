@@ -65,8 +65,7 @@ class WLScraper():
             channel = channel.replace(' (Pay-TV)','').strip()
             channel = channel.replace(u' (Österreich)','').strip()
             self.channel = channel.replace(' (Schweiz)','').strip()
-            _tvshowname = re.compile('class="sendung b[^\s]*">(.+?)</a>', re.DOTALL).findall(content)[0]
-            self.tvshowname = _tvshowname.replace("'", '').strip()
+            self.tvshowname = re.compile('class="sendung b[^\s]*">(.+?)</a>', re.DOTALL).findall(content)[0]
             _tvshowstarttime = re.compile('start=(.+?)&ktermin', re.DOTALL).findall(content)[0]
             _tvshowstarttime = datetime.datetime(*(time.strptime(_tvshowstarttime, '%Y%m%dT%H%M%S')[0:6]))
             self.tvshowstarttime = _tvshowstarttime.strftime('%H:%M')
