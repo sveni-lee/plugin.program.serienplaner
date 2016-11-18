@@ -29,6 +29,8 @@ import sqlite3
 from datetime import timedelta
 import _strptime
 from xml.dom import minidom
+from socket import *
+from bs4 import BeautifulSoup
 
 from resources.lib.serienplaner import WLScraper
 
@@ -105,9 +107,15 @@ def getUnicodePage(url, container=None):
     encoding = 'utf-8'
     if "content-type" in req.headers and "charset=" in req.headers['content-type']:
         encoding=req.headers['content-type'].split('charset=')[-1]
-    content = unicode(urllib2.urlopen(req).read(), encoding).replace("\\", "")
-    if container is None: return content
-    return content.split(container)
+    try:
+        content = unicode(urllib2.urlopen(req).read(), encoding).replace("\\", "")
+        if container is None: return content
+        return content.split(container)
+    except timeout:
+        content = unicode(urllib2.urlopen(req).read(), encoding).replace("\\", "")
+        if container is None: return content
+        return content.split(container)
+
 
 def getUnicodePage2(url):
     req = urllib2.Request(url)
@@ -115,6 +123,12 @@ def getUnicodePage2(url):
     content = content.replace("\\","")
     return content
 
+def getUnicodePage3(url):
+    headers = { 'User-Agent' : 'Mozilla/5.0' }
+    req = urllib2.Request(url, None, headers)
+    content = unicode(urllib2.urlopen(req).read(), "utf-8")
+    content = content.replace("\\","")
+    return content
 
 # get parameter hash, convert into parameter/value pairs, return dictionary
 
@@ -192,6 +206,13 @@ def channelName2channelId(channelname):
 ## get TVShow-DBID 
 ##########################################################################################################################
 def TVShowName2TVShowDBID(tvshowname):
+
+    trans = json.loads(str(TVShowTranslate))
+    for tr in trans:
+        if tvshowname == tr['name']:
+            writeLog("Translating %s to %s" % (tvshowname,tr['tvshow']), level=xbmc.LOGDEBUG)
+            tvshowname = tr['tvshow']
+
     query = {
             "jsonrpc": "2.0",
             "method": "VideoLibrary.GetTVShows",
@@ -219,6 +240,13 @@ def TVShowName2TVShowDBID(tvshowname):
 ## get TVShow-ID 
 ##########################################################################################################################
 def TVShowName2TVShowID(tvshowname):
+
+    trans = json.loads(str(TVShowTranslate))
+    for tr in trans:
+        if tvshowname == tr['name']:
+            writeLog("Translating %s to %s" % (tvshowname,tr['tvshow']), level=xbmc.LOGDEBUG)
+            tvshowname = tr['tvshow']
+
     query = {
             "jsonrpc": "2.0",
             "method": "VideoLibrary.GetTVShows",
@@ -295,8 +323,13 @@ def get_thetvdbID(tvshowname):
 
     tvshowname = tvshowname.encode("utf-8")
     url_str="http://thetvdb.com/api/GetSeries.php?seriesname="+tvshowname
-    xml_str = urllib.urlopen(url_str).read()
-    xmldoc = minidom.parseString(xml_str)
+    try:
+        xml_str = urllib.urlopen(url_str).read()
+        xmldoc = minidom.parseString(xml_str)
+    except timeout:
+        time.sleep(5)
+        xml_str = urllib.urlopen(url_str).read()
+        xmldoc = minidom.parseString(xml_str)
 
     series_detail = xmldoc.getElementsByTagName("Series")
 
@@ -338,7 +371,7 @@ def TVShowName2TVShow_Detais(tvshowname):
 ##########################################################################################################################
 
 def get_thetvdbPoster(imdbnumber):
-    url_str="http://thetvdb.com/api/DECE3B6B5464C552/series/%s/de.xml" % (imdbnumber)
+    url_str="http://tvdb.cytec.us/api/9DAF49C96CBF8DAC/series/%s/de.xml" % (imdbnumber)
     xml_str = urllib.urlopen(url_str).read()
     xmldoc = minidom.parseString(xml_str)
 
@@ -429,6 +462,23 @@ def clearInfoProperties():
     for i in range(1, 6, 1):
         WINDOW.clearProperty('TVHighlightsToday.RatingType.%s' % (i))
         WINDOW.clearProperty('TVHighlightsToday.Rating.%s' % (i))
+
+##########################################################################################################################
+## get start Datum
+##########################################################################################################################
+
+def get_startdate():
+    m = open("%s/datestamp.dat" % __datapath__,"r")
+    datestamp_ = m.read()
+    datestamp_ = datetime.datetime(*(time.strptime(datestamp_, '%d.%m.%Y')[0:6]))
+    datestamp = datestamp_.strftime('%d.%m.%Y')
+    today_ = time.strftime("%d.%m.%Y")
+    today_ = datetime.datetime(*(time.strptime(today_, '%d.%m.%Y')[0:6]))
+
+    i = datestamp_ - today_
+    i = i.days
+    return i
+
 
 ##########################################################################################################################
 ## clear content of widgets in Home Window
@@ -547,9 +597,9 @@ def scrapeWLPage(category, day):
     url = url = '%s%s/%s' % (WLURL, SPWatchtypes[category], day)
     writeLog('Start scraping category %s from %s' % (category, url), level=xbmc.LOGDEBUG)
 
-    content = getUnicodePage(url, container='<li id="e_')
     i = 1
-    content.pop(0)
+    page = getUnicodePage3(url)
+    soup = BeautifulSoup(page, "html.parser",from_encoding="acii")
 
     blobs = WINDOW.getProperty('SP.%s.blobs' % (category))
     if blobs != '':
@@ -557,8 +607,8 @@ def scrapeWLPage(category, day):
         for idx in range(1, int(blobs) + 1, 1):
             WINDOW.clearProperty('SP.%s.%s' % (category, idx))
 
-    for container in content:
-
+#    for container in content:
+    for container in soup.findAll('li', {'id': re.compile(r'e_[^\s]*')}):
         data = WLScraper()
         data.scrapeserien(container)
 
@@ -611,8 +661,11 @@ def scrapeWLPage(category, day):
             title = str(title.lower())
             url = "http://www.fernsehserien.de/%s/episodenguide" % (tvshow)
             detail_url = WLScraper()
-            detail_url.get_scrapper_fernsehserien_path(getUnicodePage(url), tvshow, title)
-            writeLog("Fernsehserienpath: %s" % (detail_url.detailpath), level=xbmc.LOGDEBUG)
+            try:
+                detail_url.get_scrapper_fernsehserien_path(getUnicodePage(url), tvshow, title)
+                writeLog("Fernsehserienpath: %s" % (detail_url.detailpath), level=xbmc.LOGDEBUG)
+            except:
+                pass
             if not detail_url.detailpath:
                 continue
             else:
@@ -662,9 +715,12 @@ def scrapeWLPage(category, day):
             title = title.replace(' ', '-').strip()        
             title = str(title.lower())
             url = "http://www.fernsehserien.de/%s/episodenguide" % (tvshow)
-            detail_url = WLScraper()
-            detail_url.get_scrapper_fernsehserien_path(getUnicodePage(url), tvshow, title)
-            writeLog("Fernsehserienpath: %s" % (detail_url.detailpath), level=xbmc.LOGDEBUG)
+            try:
+                detail_url = WLScraper()
+                detail_url.get_scrapper_fernsehserien_path(getUnicodePage(url), tvshow, title)
+                writeLog("Fernsehserienpath: %s" % (detail_url.detailpath), level=xbmc.LOGDEBUG)
+            except:
+                pass
             if not detail_url.detailpath:
                 pass
             else:
@@ -812,6 +868,12 @@ def scrapeWLPage(category, day):
         conn.commit()
         conn.close()
         i += 1
+        
+        m = open("%s/datestamp.dat" % __datapath__,"w")
+        m.write(str(data.date))
+        m.close()
+
+
 
 # M A I N
 #________
@@ -846,7 +908,8 @@ if methode == 'scrape_serien':
     f.close()    
 
     for category in categories():
-        for i in range(__advancedDay__):
+        b = get_startdate()
+        for i in range(b, __advancedDay__):
             scrapeWLPage(category, i)
     refreshWidget()
 
