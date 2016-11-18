@@ -7,6 +7,7 @@ import time
 from xml.dom import minidom
 import urllib
 import urllib2
+from socket import *
 try:
     import simplejson as json
 except ImportError:
@@ -58,35 +59,61 @@ class WLScraper():
         self.clearlogo = ''
 
 
-    def scrapeserien(self, content):
+    def scrapeserien(self, container):
 
         try:
-            channel = re.compile('"stationslogo" alt="(.+?)"', re.DOTALL).findall(content)[0]
-            channel = channel.replace(' (Pay-TV)','').strip()
-            channel = channel.replace(u' (Österreich)','').strip()
-            self.channel = channel.replace(' (Schweiz)','').strip()
-            self.tvshowname = re.compile('class="sendung b[^\s]*">(.+?)</a>', re.DOTALL).findall(content)[0]
-            _tvshowstarttime = re.compile('start=(.+?)&ktermin', re.DOTALL).findall(content)[0]
-            _tvshowstarttime = datetime.datetime(*(time.strptime(_tvshowstarttime, '%Y%m%dT%H%M%S')[0:6]))
-            self.tvshowstarttime = _tvshowstarttime.strftime('%H:%M')
-            self.date = _tvshowstarttime.strftime('%d.%m.%Y')
-            _tvshowendtime = re.compile('ende=(.+?)&kid', re.DOTALL).findall(content)[0]
-            _tvshowendtime = datetime.datetime(*(time.strptime(_tvshowendtime, '%Y%m%dT%H%M%S')[0:6]))
-            self.starttimestamp = _tvshowstarttime
-            self.tvshowendtime = _tvshowendtime.strftime('%H:%M')
-            _runtime = _tvshowendtime - _tvshowstarttime
-            self.runtime = _runtime.seconds/60
-            _episode = re.compile('title="Episode">(.+?)</span>', re.DOTALL).findall(content)[0]
-            self.episode = _episode.lstrip('0')
-            if len(re.compile('target="_new">(.+?)</a>', re.DOTALL).findall(content))>0:
-                self.title = re.compile('target="_new">(.+?)</a>', re.DOTALL).findall(content)[0]
-            else:
-                self.title = re.compile('class="sendung b[^\s]*">(.+?)</a>', re.DOTALL).findall(content)[0]
-            _staffel = re.compile('title="Staffel">(.+?)</span>', re.DOTALL).findall(content)[0]
-            self.staffel = _staffel.lstrip('0')
-            self.nameURL = re.compile('class="entry"><a href="(.+?)" class', re.DOTALL).findall(content)[0]            
-            self.detailURL = re.compile('&nbsp;<a href="(.+?)" class', re.DOTALL).findall(content)[0]
-            self.neueepisode = re.compile('<span class="bgbox_neu">(.+?)</span>', re.DOTALL).findall(content)[0]
+            for channel in container.findAll("span", {"class" : "d3 senderlogo"}):
+                channel = channel.img["title"].encode('utf-8')
+                channel = channel.replace(' (Pay-TV)','').strip()
+                channel = channel.replace(' (Österreich)','').strip()
+                self.channel = channel.replace(' (Schweiz)','').strip()
+
+            for details in container.findAll("span", {"class" : "sendung ep"}):
+                self.tvshowname = details.get_text()
+
+                _timestamps = details.a["href"]
+                _tvshowstarttime = re.compile('start=(.+?)&ktermin', re.DOTALL).findall(_timestamps)[0]
+                _tvshowstarttime = datetime.datetime(*(time.strptime(_tvshowstarttime, '%Y%m%dT%H%M%S')[0:6]))
+                self.tvshowstarttime = _tvshowstarttime.strftime('%H:%M')
+
+                self.date = _tvshowstarttime.strftime('%d.%m.%Y')
+
+                _tvshowendtime = re.compile('ende=(.+?)&kid', re.DOTALL).findall(_timestamps)[0]
+                _tvshowendtime = datetime.datetime(*(time.strptime(_tvshowendtime, '%Y%m%dT%H%M%S')[0:6]))
+                self.starttimestamp = _tvshowstarttime
+
+                self.tvshowendtime = _tvshowendtime.strftime('%H:%M')
+
+                _runtime = _tvshowendtime - _tvshowstarttime
+                self.runtime = _runtime.seconds/60
+            for details_1 in container.findAll("span", {"class" : "sf1"}):    
+                try:
+                    _episode = re.compile('title="Episode">(.+?)</span>', re.DOTALL).findall(str(details_1))[0]
+                    self.episode = _episode.lstrip('0')
+                except IndexError:
+                    _episode = ''
+                    self.episode = ''
+                try:
+                    _staffel = re.compile('title="Staffel">(.+?)</span>', re.DOTALL).findall(str(details_1))[0]
+                    self.staffel = _staffel.lstrip('0')
+                except IndexError:
+                    _staffel = ''
+                    self.staffel = ''
+            
+            for hinweis in container.findAll("span", {"class" : "hinweis"}):
+                self.neueepisode = hinweis.get_text()
+
+            for titles in container.findAll("div", {"class" : "ep2"}):
+                _title = titles.get_text()
+                _title = _title.lstrip("%s" % _staffel)
+                _title = _title.lstrip("%s" % _episode)
+                _title = _title.replace("%s" % self.neueepisode, '')
+                self.title = _title            
+            try:
+                self.nameURL = re.compile('class="entry"><a href="(.+?)" class', re.DOTALL).findall(content)[0]            
+                self.detailURL = re.compile('&nbsp;<a href="(.+?)" class', re.DOTALL).findall(content)[0]
+            except:
+                pass
 
 
         except IndexError:
@@ -127,79 +154,160 @@ class WLScraper():
                 pass
 
     def get_detail_thetvdb(self, imdbnumber, staffel, episode):
-        url_str="http://thetvdb.com/api/DECE3B6B5464C552/series/"+imdbnumber+"/all/de.xml"
-        xml_str = urllib.urlopen(url_str).read()
-        xmldoc = minidom.parseString(xml_str)
+        try:
+            url_str="http://tvdb.cytec.us/api/9DAF49C96CBF8DAC/series/"+imdbnumber+"/all/de.xml"
+            xml_str = urllib.urlopen(url_str).read() 
+        except timeout:
+            time.sleep(3)
+            url_str="http://tvdb.cytec.us/api/9DAF49C96CBF8DAC/series/"+imdbnumber+"/all/de.xml"
+            xml_str = urllib.urlopen(url_str).read()
 
-        series_details = xmldoc.getElementsByTagName("Series")
+        try:
+            xmldoc = minidom.parseString(xml_str)
 
-        for Series in series_details:
-            try:
-                posterUrl = Series.getElementsByTagName("poster")[0].firstChild.nodeValue
-                self.posterUrl = "http://thetvdb.com/banners/"+posterUrl
-            except (AttributeError, IndexError):
-                pass
+            series_details = xmldoc.getElementsByTagName("Series")
 
-            try:
-                fanartUrl = Series.getElementsByTagName("fanart")[0].firstChild.nodeValue
-                self.fanartUrl = "http://thetvdb.com/banners/"+fanartUrl
-            except (AttributeError, IndexError):
-                pass   
-
-            try:
-                _genre = Series.getElementsByTagName("Genre")[0].firstChild.nodeValue
-                _genre = _genre[1:-1]
-                self.genre = _genre.replace('|',' | ').strip()
-            except (AttributeError, IndexError):
-                pass
-
-            try:
-                self.studio = Series.getElementsByTagName("Network")[0].firstChild.nodeValue
-            except (AttributeError, IndexError):
-                pass
-
-            try:
-                self.content_rating = Series.getElementsByTagName("ContentRating")[0].firstChild.nodeValue
-            except (AttributeError, IndexError):
-                pass
-
-            try:
-                self.status = Series.getElementsByTagName("Status")[0].firstChild.nodeValue
-            except (AttributeError, IndexError):
-                pass
-
-            try:
-                year = Series.getElementsByTagName("FirstAired")[0].firstChild.nodeValue
-                self.year = year[:-6]
-            except (AttributeError, IndexError):
-                pass
-
-
-        episodes_detail = xmldoc.getElementsByTagName("Episode")
-
-        for Episode in episodes_detail:
-            if Episode.getElementsByTagName('SeasonNumber')[0].firstChild.nodeValue == staffel and Episode.getElementsByTagName('EpisodeNumber')[0].firstChild.nodeValue == episode:  
+            for Series in series_details:
                 try:
-                    self.epiid = Episode.getElementsByTagName("id")[0].firstChild.nodeValue
-                except IndexError:
+                    posterUrl = Series.getElementsByTagName("poster")[0].firstChild.nodeValue
+                    self.posterUrl = "http://thetvdb.com/banners/"+posterUrl
+                except (AttributeError, IndexError):
                     pass
+
                 try:
-                    self.plot = Episode.getElementsByTagName("Overview")[0].firstChild.nodeValue
-                except:
+                    fanartUrl = Series.getElementsByTagName("fanart")[0].firstChild.nodeValue
+                    self.fanartUrl = "http://thetvdb.com/banners/"+fanartUrl
+                except (AttributeError, IndexError):
+                    pass   
+
+                try:
+                    _genre = Series.getElementsByTagName("Genre")[0].firstChild.nodeValue
+                    _genre = _genre[1:-1]
+                    self.genre = _genre.replace('|',' | ').strip()
+                except (AttributeError, IndexError):
                     pass
+
                 try:
-                    self.rating = Episode.getElementsByTagName("Rating")[0].firstChild.nodeValue
-                except:
+                    self.studio = Series.getElementsByTagName("Network")[0].firstChild.nodeValue
+                except (AttributeError, IndexError):
                     pass
+
                 try:
-                    self.firstaired = Episode.getElementsByTagName("FirstAired")[0].firstChild.nodeValue
-                except:
+                    self.content_rating = Series.getElementsByTagName("ContentRating")[0].firstChild.nodeValue
+                except (AttributeError, IndexError):
                     pass
+
                 try:
-                    self.pic_path = "http://www.thetvdb.com/banners/episodes/"+imdbnumber+"/"+self.epiid+".jpg"
-                except AttributeError:
-                    self.pic_path = False
-    
+                    self.status = Series.getElementsByTagName("Status")[0].firstChild.nodeValue
+                except (AttributeError, IndexError):
+                    pass
+
+                try:
+                    year = Series.getElementsByTagName("FirstAired")[0].firstChild.nodeValue
+                    self.year = year[:-6]
+                except (AttributeError, IndexError):
+                    pass
+
+
+            episodes_detail = xmldoc.getElementsByTagName("Episode")
+
+            for Episode in episodes_detail:
+                if Episode.getElementsByTagName('SeasonNumber')[0].firstChild.nodeValue == staffel and Episode.getElementsByTagName('EpisodeNumber')[0].firstChild.nodeValue == episode:  
+                    try:
+                        self.epiid = Episode.getElementsByTagName("id")[0].firstChild.nodeValue
+                    except IndexError:
+                        pass
+                    try:
+                        self.plot = Episode.getElementsByTagName("Overview")[0].firstChild.nodeValue
+                    except:
+                        pass
+                    try:
+                        self.rating = Episode.getElementsByTagName("Rating")[0].firstChild.nodeValue
+                    except:
+                        pass
+                    try:
+                        self.firstaired = Episode.getElementsByTagName("FirstAired")[0].firstChild.nodeValue
+                    except:
+                        pass
+                    try:
+                        self.pic_path = "http://www.thetvdb.com/banners/episodes/"+imdbnumber+"/"+self.epiid+".jpg"
+                    except AttributeError:
+                        self.pic_path = False
+
+        except:
+            url_str="http://tvdb.cytec.us/api/9DAF49C96CBF8DAC/series/"+imdbnumber+"/all/en.xml"
+            xml_str = urllib.urlopen(url_str).read()               
+            xmldoc = minidom.parseString(xml_str)
+            series_details = xmldoc.getElementsByTagName("Series")
+            
+            for Series in series_details:
+                try:
+                    posterUrl = Series.getElementsByTagName("poster")[0].firstChild.nodeValue
+                    self.posterUrl = "http://thetvdb.com/banners/"+posterUrl
+                except (AttributeError, IndexError):
+                    pass
+
+                try:
+                    fanartUrl = Series.getElementsByTagName("fanart")[0].firstChild.nodeValue
+                    self.fanartUrl = "http://thetvdb.com/banners/"+fanartUrl
+                except (AttributeError, IndexError):
+                    pass   
+
+                try:
+                    _genre = Series.getElementsByTagName("Genre")[0].firstChild.nodeValue
+                    _genre = _genre[1:-1]
+                    self.genre = _genre.replace('|',' | ').strip()
+                except (AttributeError, IndexError):
+                    pass
+
+                try:
+                    self.studio = Series.getElementsByTagName("Network")[0].firstChild.nodeValue
+                except (AttributeError, IndexError):
+                    pass
+
+                try:
+                    self.content_rating = Series.getElementsByTagName("ContentRating")[0].firstChild.nodeValue
+                except (AttributeError, IndexError):
+                    pass
+
+                try:
+                    self.status = Series.getElementsByTagName("Status")[0].firstChild.nodeValue
+                except (AttributeError, IndexError):
+                    pass
+
+                try:
+                    year = Series.getElementsByTagName("FirstAired")[0].firstChild.nodeValue
+                    self.year = year[:-6]
+                except (AttributeError, IndexError):
+                    pass
+
+
+            episodes_detail = xmldoc.getElementsByTagName("Episode")
+
+            for Episode in episodes_detail:
+                if Episode.getElementsByTagName('SeasonNumber')[0].firstChild.nodeValue == staffel and Episode.getElementsByTagName('EpisodeNumber')[0].firstChild.nodeValue == episode:  
+                    try:
+                        self.epiid = Episode.getElementsByTagName("id")[0].firstChild.nodeValue
+                    except IndexError:
+                        pass
+                    try:
+                        self.plot = Episode.getElementsByTagName("Overview")[0].firstChild.nodeValue
+                    except:
+                        pass
+                    try:
+                        self.rating = Episode.getElementsByTagName("Rating")[0].firstChild.nodeValue
+                    except:
+                        pass
+                    try:
+                        self.firstaired = Episode.getElementsByTagName("FirstAired")[0].firstChild.nodeValue
+                    except:
+                        pass
+                    try:
+                        self.pic_path = "http://www.thetvdb.com/banners/episodes/"+imdbnumber+"/"+self.epiid+".jpg"
+                    except AttributeError:
+                        self.pic_path = False
+
+
     def get_original_series_name(self, content, tvshow):
 
         try:
@@ -267,25 +375,27 @@ class WLScraper():
 
     def get_fanarttv_clearlogo(self, tvdb_id, art_type, lang = 'en'):
 
-        API_KEY = '586118be1ac673f74963cc284d46bd8e'
+        API_KEY = 'd97752d8f49fede7114b010f07b3b71f'
         API_URL_TV = 'http://webservice.fanart.tv/v3/tv/%s?api_key=%s'   
 
-        if art_type == 'clearlogo':
-            find_types = [ 'hdtvlogo', 'clearlogo' ]
-        else:
-            find_types = [ 'tv' + str(art_type) ]
-        url = API_URL_TV % (tvdb_id, API_KEY)
-        data = json.load(urllib.urlopen(url))
-        if not data:
-            self.clearlogo = None
+        try:
+            if art_type == 'clearlogo':
+                find_types = [ 'hdtvlogo', 'clearlogo' ]
+            else:
+                find_types = [ 'tv' + str(art_type) ]
+            url = API_URL_TV % (tvdb_id, API_KEY)
+            data = json.load(urllib.urlopen(url))
+            if not data:
+                self.clearlogo = None
 
-        ret = None
-        for find in find_types:
-            logos = data.get(find, [])
-            for logo in logos:
-                if logo['lang'] == lang:
-                    self.clearlogo = logo['url']
-                # We'll accept the wrong language as a fallback, as they are sometimes mislabeled.
-                if not self.clearlogo:
-                    self.clearlogo = logo['url']
-                                       
+            ret = None
+            for find in find_types:
+                logos = data.get(find, [])
+                for logo in logos:
+                    if logo['lang'] == lang:
+                        self.clearlogo = logo['url']
+                    # We'll accept the wrong language as a fallback, as they are sometimes mislabeled.
+                    if not self.clearlogo:
+                        self.clearlogo = logo['url']
+        except:
+            pass                               
