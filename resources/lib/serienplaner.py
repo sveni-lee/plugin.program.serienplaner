@@ -68,7 +68,7 @@ class WLScraper():
                 channel = channel.replace(' (Österreich)','').strip()
                 self.channel = channel.replace(' (Schweiz)','').strip()
 
-            for details in container.findAll("span", {"class" : "sendung ep"}):
+            for details in container.findAll("span", {"class" : "sendung"}):
                 self.tvshowname = details.get_text()
 
                 _timestamps = details.a["href"]
@@ -155,11 +155,11 @@ class WLScraper():
 
     def get_detail_thetvdb(self, imdbnumber, staffel, episode):
         try:
-            url_str="http://tvdb.cytec.us/api/9DAF49C96CBF8DAC/series/"+imdbnumber+"/all/de.xml"
+            url_str="http://thetvdb.com/api/DECE3B6B5464C552/series/"+imdbnumber+"/all/de.xml"
             xml_str = urllib.urlopen(url_str).read() 
         except timeout:
             time.sleep(3)
-            url_str="http://tvdb.cytec.us/api/9DAF49C96CBF8DAC/series/"+imdbnumber+"/all/de.xml"
+            url_str="http://thetvdb.com/api/DECE3B6B5464C552/series/"+imdbnumber+"/all/de.xml"
             xml_str = urllib.urlopen(url_str).read()
 
         try:
