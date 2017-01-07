@@ -13,7 +13,8 @@
         <setting id="classics" type="bool" label="30122" default="false"/>
         <setting id="soaps" type="bool" label="30123" default="false"/>
         <setting id="first_aired" type="bool" label="30132" default="false"/>
-        <setting id="episode_not_in_db" type="bool" label="30133" default="false"/>        
+        <setting id="serie_not_in_db" type="bool" label="30133" default="false"/>
+        <setting id="episode_not_in_db" type="bool" label="30134" default="false"/>        
         <setting type="sep" />
         <setting id="max_hl_cat" type="labelenum" label="30115" values="3|4|5|6|7|8|9|10|12|15" default="12" />
         <setting id="prefer_hd" type="bool" label="30113" default="true" />
