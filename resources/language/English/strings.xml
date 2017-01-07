@@ -33,6 +33,7 @@
 
     <string id="30132">Firstaired Only</string>
     <string id="30133">TVShows from DB Only</string>
+    <string is="30134">Episode not in DB</string>
 
     <string id="30126">Advanced Days</string>
     <string id="30127">Content Refresh</string>
