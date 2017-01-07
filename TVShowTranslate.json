@@ -8,11 +8,17 @@
 	"name": "Once Upon a Time - Es war einmal...",
 	"tvshow": "Once Upon a Time 2011"
 }, {
+	"name": "Bones - Die Knochenjägerin",
+	"tvshow": "Bones"
+}, {
+	"name": "Angie Tribeca: Sonst nichts!",
+	"tvshow": "Angie Tribeca"
+}, {
 	"name": "Awkward - Mein sogenanntes Leben",
 	"tvshow": "Awkward"
 }, {
 	"name": "Disney S3 - Stark, schnell, schlau",
-	"tvshow": "Disney S3"
+	"tvshow": "Lab Rats (2012)"
 }, {
 	"name": "Die Millers",
 	"tvshow": "The Millers"
@@ -58,4 +64,13 @@
 }, {
 	"name": "Jessie",
 	"tvshow": "Jessie (2011)"
+}, {
+	"name": "Arrow",
+	"tvshow": "The green Arrow"
+}, {
+	"name": "Reckless",
+	"tvshow": "Reckless (2014)"	
+}, {
+	"name": "Snooki and JWoww",
+	"tvshow": "Snooki JWoww"	
 }]

@@ -12,8 +12,17 @@
 	"pvrname": "Pro7 Fun"
 }, {
 	"name": "Sky Atlantic +1",
-	"pvrname": "Sky Atlantic+1"	
+	"pvrname": "Sky Atlantic +1"	
 }, {
 	"name": "Fox Channel",
-	"pvrname": "Fox"			
+	"pvrname": "Fox"				
+}, {
+	"name": "Universal Channel",
+	"pvrname": "Universal"
+}, {
+	"name": "nickelodeon austria",
+	"pvrname": "nickelodeon"	
+}, {
+	"name": "SAT.1",
+	"pvrname": "SAT.1 HD"				
 }]

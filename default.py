@@ -468,16 +468,21 @@ def clearInfoProperties():
 ##########################################################################################################################
 
 def get_startdate():
-    m = open("%s/datestamp.dat" % __datapath__,"r")
-    datestamp_ = m.read()
-    datestamp_ = datetime.datetime(*(time.strptime(datestamp_, '%d.%m.%Y')[0:6]))
-    datestamp = datestamp_.strftime('%d.%m.%Y')
-    today_ = time.strftime("%d.%m.%Y")
-    today_ = datetime.datetime(*(time.strptime(today_, '%d.%m.%Y')[0:6]))
+    try:
+        m = open("%s/datestamp.dat" % __datapath__,"r")
+        datestamp_ = m.read()
+        datestamp_ = datetime.datetime(*(time.strptime(datestamp_, '%d.%m.%Y')[0:6]))
+        datestamp = datestamp_.strftime('%d.%m.%Y')
+        today_ = time.strftime("%d.%m.%Y")
+        today_ = datetime.datetime(*(time.strptime(today_, '%d.%m.%Y')[0:6]))
 
-    i = datestamp_ - today_
-    i = i.days
-    return i
+        i = datestamp_ - today_
+        i = i.days
+        return i
+    except:
+        pass
+        i = 0
+        return i
 
 
 ##########################################################################################################################
@@ -625,13 +630,13 @@ def scrapeWLPage(category, day):
         detailURL = 'http://www.wunschliste.de%s' % (data.detailURL)
         seriesUrl = 'http://www.wunschliste.de%s' % (data.nameURL)
         imdbnumber = get_thetvdbID(data.tvshowname)
-        if not imdbnumber:
-            org_ser_name = WLScraper ()
-            org_ser_name.get_original_series_name(getUnicodePage(seriesUrl), data.tvshowname)
-            imdbnumber = get_thetvdbID(org_ser_name.orig_tvshow)
-            writeLog("SerienPlaner: TVShow has original name: %s" % (imdbnumber), level=xbmc.LOGDEBUG) 
-        else:
-            pass
+#        if not imdbnumber:
+#            org_ser_name = WLScraper ()
+#            org_ser_name.get_original_series_name(getUnicodePage(seriesUrl), data.tvshowname)
+#            imdbnumber = get_thetvdbID(org_ser_name.orig_tvshow)
+#            writeLog("SerienPlaner: TVShow has original name: %s" % (imdbnumber), level=xbmc.LOGDEBUG) 
+#        else:
+#            pass
         if not imdbnumber:
 ##            details = WLScraper()
 ##            details.scrapeDetailPage(getUnicodePage(detailURL), 'div class="text"')
@@ -933,7 +938,7 @@ elif methode == 'get_item_serienplaner':
 
         li.setProperty("channel", sitem['Channel'])
         li.setArt({'poster': sitem['Poster'], 'fanart': sitem['Fanart'], 'clearlogo' : sitem['Clearlogo']})
-        li.setInfo('video', {'Season' : sitem['Staffel'], 'Episode' : sitem['Episode'], 'Title' : sitem['Title'], 'Genre' : sitem['Genre'], 'mpaa' : sitem['Altersfreigabe'], 'year' : sitem['Jahr'], 'plot' : sitem['Description'], 'rating' : sitem['Rating'], 'studio' : sitem['Studio'], 'tvshowtitle' : sitem['TVShow']})
+        li.setInfo('video', {'mediatype' : "episode", 'Season' : sitem['Staffel'], 'Episode' : sitem['Episode'], 'Title' : sitem['Title'], 'Genre' : sitem['Genre'], 'mpaa' : sitem['Altersfreigabe'], 'year' : sitem['Jahr'], 'plot' : sitem['Description'], 'rating' : sitem['Rating'], 'studio' : sitem['Studio'], 'tvshowtitle' : sitem['TVShow']})
         li.setProperty("senderlogo", sitem['Logo'])
         li.setProperty("starttime", sitem['Starttime'])
         li.setProperty("date", sitem['Datum'])
