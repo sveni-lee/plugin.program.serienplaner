@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<addon id="plugin.program.serienplaner" name="Serienplaner" version="0.1.0" provider-name="sveni_lee">
+<addon id="plugin.program.serienplaner" name="Serienplaner" version="0.1.1" provider-name="sveni_lee">
     <requires>
         <import addon="xbmc.python" version="2.25.0"/>
         <import addon="script.module.feedparser" version="5.1.3"/>
