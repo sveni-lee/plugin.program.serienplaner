@@ -16,14 +16,16 @@
         <summary lang="de">Holt die Seriensendetermine von www.Wunschliste.de</summary>
         <language>de</language>
         <description lang="en">Fetch todays TVShows from www.Wunschliste.de</description>
-        <description lang="de">Holt die Seriensendetermine von www.Wunschliste.de
-Dieses Plugin benoetigt eine Skin-Integration!
-Dank an tdoe und BJ1 für ihre Tatkräftige Unterstützung
-        </description>
+        <description lang="de">Holt die Seriensendetermine von www.Wunschliste.de[CR]Dieses Plugin benoetigt eine Skin-Integration![CR]Dank an tdoe und BJ1 für ihre Tatkräftige Unterstützung</description>
         <license>GNU GENERAL PUBLIC LICENSE. Version 2, June 1991</license>
         <source>https://github.com/sveni-lee/plugin.program.serienplaner</source>
         <forum>http://</forum>
         <email>-</email>
         <website>-</website>
+        <assets>
+            <screenshot>resources/screenshots/screenshot-01.jpg</screenshot>
+            <screenshot>resources/screenshots/screenshot-02.jpg</screenshot>
+            <screenshot>resources/screenshots/screenshot-03.jpg</screenshot>
+        </assets>
     </extension>
 </addon>
