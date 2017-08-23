@@ -23,6 +23,8 @@
         <email>-</email>
         <website>-</website>
         <assets>
+		   <icon>resources/icon.png</icon>
+		   <fanart>resources/fanart.jpg</fanart>
             <screenshot>resources/screenshots/screenshot-01.jpg</screenshot>
             <screenshot>resources/screenshots/screenshot-02.jpg</screenshot>
             <screenshot>resources/screenshots/screenshot-03.jpg</screenshot>
