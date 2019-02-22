@@ -1,9 +1,9 @@
 #!/usr/bin/python
 ###########################################################################
 #
-#          FILE:  plugin.program.tvhighlights/starter.py
+#          FILE:  plugin.program.serienplaner/starter.py
 #
-#        AUTHOR:  Tobias D. Oestreicher
+#        AUTHOR:  Sveni_Lee
 #
 #       LICENSE:  GPLv3 <http://www.gnu.org/licenses/gpl.txt>
 #       VERSION:  0.1.5
@@ -118,10 +118,10 @@ class Starter():
         writeLog('Tabelle ist vorhanden: %s' % (tableexist))
         
         if not tableexist == True or not os.path.exists(Backgroundupdate):
-            xbmc.executebuiltin('XBMC.RunScript(plugin.program.serienplaner,"?methode=scrape_serien")')
+            xbmc.executebuiltin('XBMC.RunScript(plugin.program.serienplaner,action=scrape_serien)')
 
         else:
-             xbmc.executebuiltin('XBMC.RunScript(plugin.program.serienplaner,"?methode=refresh_screen")')
+             xbmc.executebuiltin('XBMC.RunScript(plugin.program.serienplaner,action=refresh_screen)')
 
     def start(self):
         writeLog('Starting %s V.%s' % (__addonname__, __version__))
@@ -147,11 +147,11 @@ class Starter():
             if time.time() >= scraperupdate:
                 writeLog('Scrape SerienPlaner')
                 notifyOSD(__LS__(30010), __LS__(30018), __icon__, enabled=self.enableinfo)
-                xbmc.executebuiltin('XBMC.RunScript(plugin.program.serienplaner,"?methode=scrape_serien")')
+                xbmc.executebuiltin('XBMC.RunScript(plugin.program.serienplaner,action=scrape_serien)')
             else:
                 notifyOSD(__LS__(30010), __LS__(30109), __icon__, enabled=self.enableinfo)
                 writeLog('Refresh content on home screen')
-                xbmc.executebuiltin('XBMC.RunScript(plugin.program.serienplaner,"?methode=refresh_screen")')
+                xbmc.executebuiltin('XBMC.RunScript(plugin.program.serienplaner,action=refresh_screen)')
 
 
 if __name__ == '__main__':

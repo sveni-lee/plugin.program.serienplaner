@@ -135,7 +135,8 @@ def getUnicodePage3(url):
 def parameters_string_to_dict(parameters):
     paramDict = {}
     if parameters:
-        paramPairs = parameters[1:].split("&")
+#        paramPairs = parameters[1:].split("&") # original 22.02.2019  
+        paramPairs = parameters.split("&")
         for paramsPair in paramPairs:
             paramSplits = paramsPair.split('=')
             if (len(paramSplits)) == 2:
@@ -883,31 +884,50 @@ def scrapeWLPage(category, day):
 # M A I N
 #________
 
-# Get starting methode
+# Get starting action
 
-methode = None
+action = None
 detailurl = None
 pvrid = None
 
-if len(sys.argv)==3:
-    addon_handle = int(sys.argv[1])
-    params = parameters_string_to_dict(sys.argv[2])
-    methode = urllib.unquote_plus(params.get('methode', ''))
-    guidedate = urllib.unquote_plus(params.get('guidedate', ''))
-    url = urllib.unquote_plus(params.get('url', ''))
+arguments = sys.argv
 
-elif len(sys.argv)>1:
-    params = parameters_string_to_dict(sys.argv[1])
-    methode = urllib.unquote_plus(params.get('methode', ''))
+if len(arguments) > 1:
+
+    if arguments[0][0:6] == 'plugin':
+        writeLog('calling script as plugin source', level=xbmc.LOGDEBUG)
+        addon_handle = int(arguments[1])
+        arguments.pop(0)
+        arguments[1] = arguments[1][1:]
+
+    params = parameters_string_to_dict(arguments[1])
+    action = urllib.unquote_plus(params.get('action', ''))
     detailurl = urllib.unquote_plus(params.get('detailurl', ''))
     pvrid = urllib.unquote_plus(params.get('pvrid', ''))
     url = urllib.unquote_plus(params.get('url', ''))
 
-writeLog("Methode from external script: %s" % (methode), level=xbmc.LOGDEBUG)
+    writeLog('provided parameter hash: %s' % (arguments[1]), level=xbmc.LOGDEBUG)
+    writeLog('plugin Pfad: %s' % (__path__), level=xbmc.LOGDEBUG)
+
+#if len(sys.argv)==3:
+#    addon_handle = int(sys.argv[1])
+#    params = parameters_string_to_dict(sys.argv[2])
+#    action = urllib.unquote_plus(params.get('action', ''))
+#    guidedate = urllib.unquote_plus(params.get('guidedate', ''))
+#    url = urllib.unquote_plus(params.get('url', ''))
+
+#elif len(sys.argv)>1:
+#    params = parameters_string_to_dict(sys.argv[1])
+#    action = urllib.unquote_plus(params.get('action', ''))
+#    detailurl = urllib.unquote_plus(params.get('detailurl', ''))
+#    pvrid = urllib.unquote_plus(params.get('pvrid', ''))
+#    url = urllib.unquote_plus(params.get('url', ''))
+
+writeLog("action from external script: %s" % (action), level=xbmc.LOGDEBUG)
 writeLog("Detailurl from external script: %s" % (detailurl), level=xbmc.LOGDEBUG)
 writeLog("pvrid from external script: %s" % (pvrid), level=xbmc.LOGDEBUG)
 
-if methode == 'scrape_serien':
+if action == 'scrape_serien':
     f = open("%s/background.dat" % __datapath__,"w")
     f.write(str(time.time()))
     f.close()    
@@ -918,15 +938,15 @@ if methode == 'scrape_serien':
             scrapeWLPage(category, i)
     refreshWidget()
 
-elif methode == 'refresh_screen':
+elif action == 'refresh_screen':
     WINDOW.setProperty('SerienPlaner.Countdown', unicode(time.time()))
     writeLog('localtime %s' % (time.time()), level=xbmc.LOGDEBUG)
     refreshWidget()
 
-elif methode == 'get_item_serienplaner':
+elif action == 'get_item_serienplaner':
     sp_items = refreshWidget()
     writeLog('spitems %s' % (sp_items), level=xbmc.LOGDEBUG)
-    writeLog('SerienPlaner sysargv: '+str(sys.argv), level=xbmc.LOGDEBUG)
+    writeLog('SerienPlaner sysargv: '+str(arguments), level=xbmc.LOGDEBUG)
     url = '-'
     for sitem in sp_items:
         li = xbmcgui.ListItem(label2=sitem['TVShow'], label=sitem['Title'], thumbnailImage=sitem['Thumb'])
@@ -938,7 +958,11 @@ elif methode == 'get_item_serienplaner':
 
         li.setProperty("channel", sitem['Channel'])
         li.setArt({'poster': sitem['Poster'], 'fanart': sitem['Fanart'], 'clearlogo' : sitem['Clearlogo']})
-        li.setInfo('video', {'mediatype' : "episode", 'Season' : sitem['Staffel'], 'Episode' : sitem['Episode'], 'Title' : sitem['Title'], 'Genre' : sitem['Genre'], 'mpaa' : sitem['Altersfreigabe'], 'year' : sitem['Jahr'], 'plot' : sitem['Description'], 'rating' : sitem['Rating'], 'studio' : sitem['Studio'], 'tvshowtitle' : sitem['TVShow']})
+        li.setInfo('video', {'mediatype' : "episode", 'season' : sitem['Staffel'], 'episode' : sitem['Episode'],
+                            'title' : sitem['Title'], 'genre' : sitem['Genre'], 'mpaa' : sitem['Altersfreigabe'], 
+                            'year' : sitem['Jahr'], 'plot' : sitem['Description'], 'rating' : sitem['Rating'],
+                            'studio' : sitem['Studio'], 'tvshowtitle' : sitem['TVShow'], 'TvShowTitle' : sitem['TVShow'], 
+                            'duration' : int(sitem['RunningTime'])*60})
         li.setProperty("senderlogo", sitem['Logo'])
         li.setProperty("starttime", sitem['Starttime'])
         li.setProperty("date", sitem['Datum'])
@@ -962,12 +986,12 @@ elif methode == 'get_item_serienplaner':
     xbmcplugin.endOfDirectory(addon_handle)
     xbmc.executebuiltin("Container.Refresh")
 
-elif methode == 'TV_SP_Guide':
+elif action == 'TV_SP_Guide':
    
     Popup = xbmcgui.WindowXMLDialog('script-serienplaner-TVGuide.xml', __path__, 'Default', '1080p')
     Popup.doModal() 
 
-elif methode == 'get_Date':
+elif action == 'get_Date':
     gdate = datetime.datetime.strftime(datetime.date.today(), '%d.%m.%Y')
     i=0
  
@@ -985,11 +1009,11 @@ elif methode == 'get_Date':
         i=i+1     
 
 
-elif methode == 'switch_channel':
+elif action == 'switch_channel':
     switchToChannel(int(pvrid))
 
-elif methode=='show_select_dialog':
-    writeLog('Methode: show select dialog', level=xbmc.LOGDEBUG)
+elif action=='show_select_dialog':
+    writeLog('action: show select dialog', level=xbmc.LOGDEBUG)
     dialog = xbmcgui.Dialog()
     cats = [__LS__(30120), __LS__(30121), __LS__(30122), __LS__(30123), __LS__(30116)]
     ret = dialog.select(__LS__(30011), cats)
